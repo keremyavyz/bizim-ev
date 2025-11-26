@@ -23,41 +23,80 @@ common_css = """
     body { font-family: 'Montserrat', sans-serif; }
     h1, h2, h3, h4 { font-family: 'Playfair Display', serif !important; }
     
-    /* Kart Yapısı */
+    /* KART YAPISI (DÜZELTİLDİ) */
     .grand-card {
-        border-radius: 16px; 
+        border-radius: 12px; 
         overflow: hidden; 
-        margin-bottom: 30px; 
+        margin-bottom: 25px; 
         transition: transform 0.3s ease;
         position: relative;
+        height: 100%; /* Eşit yükseklik için */
+        display: flex;
+        flex-direction: column;
     }
     .grand-card:hover { transform: translateY(-5px); }
     
+    /* RESİM ALANI (SABİT BOYUT) */
     .img-area {
-        width: 100%; height: 350px; 
+        width: 100%; 
+        height: 280px; /* Sabit yükseklik */
         background-color: white;
         display: flex; align-items: center; justify-content: center;
         position: relative;
+        border-bottom: 1px solid #333;
     }
-    .img-area img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .content-area { padding: 20px; }
+    .img-area img { 
+        max-width: 90%; 
+        max-height: 90%; 
+        object-fit: contain; /* Resmi bozmadan sığdır */
+    }
     
-    /* Etiketler */
+    /* İÇERİK ALANI */
+    .content-area { 
+        padding: 15px; 
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    /* BAŞLIK VE METİN SINIRLAMA (KAYMAYI ÖNLER) */
+    .card-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.2rem;
+        line-height: 1.3;
+        height: 3.2em; /* Max 2.5 satır */
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        margin-bottom: 5px;
+    }
+    .card-note {
+        font-size: 0.85rem;
+        color: #888;
+        height: 1.2em;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-style: italic;
+    }
+
+    /* ETİKETLER */
     .badge-corner {
-        position: absolute; top: 15px; left: 15px;
-        padding: 6px 12px; border-radius: 8px; 
-        font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        position: absolute; top: 10px; left: 10px;
+        padding: 4px 10px; border-radius: 6px; 
+        font-size: 0.7rem; font-weight: bold; text-transform: uppercase;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         z-index: 5;
     }
     
-    /* YENİ: Adet Yuvarlağı (x2 vb.) */
     .badge-qty {
-        position: absolute; bottom: 15px; right: 15px;
-        width: 45px; height: 45px; border-radius: 50%;
+        position: absolute; bottom: 10px; right: 10px;
+        width: 40px; height: 40px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-weight: bold; font-size: 1.1rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        font-weight: bold; font-size: 1rem;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         z-index: 10;
         border: 2px solid white;
     }
@@ -66,6 +105,15 @@ common_css = """
         padding: 15px; border-radius: 10px; margin-bottom: 10px;
         display: flex; justify-content: space-between; align-items: center;
         border-left: 5px solid #d4af37;
+    }
+    
+    /* ALINDI PERDESİ */
+    .overlay-bought {
+        position: absolute; top:0; left:0; width:100%; height:100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 20;
+        display: flex; align-items: center; justify-content: center;
+        pointer-events: none; /* Arkadaki butonlara tıklanabilsin diye */
     }
     
     ::-webkit-scrollbar { width: 8px; }
@@ -82,8 +130,8 @@ css_dark = f"""
             background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%);
             color: #e0e0e0;
         }}
-        .grand-card {{ background: #111; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }}
-        .grand-card:hover {{ border-color: #d4af37; box-shadow: 0 15px 40px rgba(212, 175, 55, 0.15); }}
+        .grand-card {{ background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }}
+        .grand-card:hover {{ border-color: #d4af37; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }}
         h1, h2, h3, h4, .big-font {{ color: #d4af37 !important; text-shadow: 0px 0px 20px rgba(212, 175, 55, 0.2); }}
         .expense-row {{ background: rgba(255,255,255,0.05); }}
         
@@ -103,8 +151,8 @@ css_light = f"""
     <style>
         {common_css}
         .stApp {{ background-color: #f8f9fa; color: #2c3e50; }}
-        .grand-card {{ background: #fff; border: 1px solid #e0e0e0; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }}
-        .grand-card:hover {{ border-color: #2c3e50; box-shadow: 0 15px 30px rgba(0,0,0,0.1); }}
+        .grand-card {{ background: #fff; border: 1px solid #e0e0e0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
+        .grand-card:hover {{ border-color: #2c3e50; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }}
         h1, h2, h3, h4, .big-font {{ color: #2c3e50 !important; }}
         .expense-row {{ background: #fff; border: 1px solid #eee; border-left: 5px solid #2c3e50; }}
         
@@ -190,17 +238,14 @@ if not st.session_state.user_name:
 # --- 5. DATA HAZIRLIK ---
 try: 
     df = get_data()
-    # Adet kolonu ekliyoruz
     cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet']
     for col in cols:
         if col not in df.columns: df[col] = ""
     if 'id' in df.columns: df['id'] = df['id'].astype(str)
     
-    # Sayısal dönüşümler
     df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
     df['ilk_fiyat'] = pd.to_numeric(df['ilk_fiyat'], errors='coerce').fillna(0)
-    df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1).astype(int) # Varsayılan 1
-    
+    df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1).astype(int)
 except: 
     df = pd.DataFrame(columns=cols)
 
@@ -215,12 +260,10 @@ with st.sidebar:
         st.rerun()
     st.divider()
     if st.button("🔄 Fiyatları Güncelle"):
-        with st.spinner("Güncelleniyor..."):
-            # Basit simülasyon, gerçekte scrape yapabiliriz
-            # Burada adeti hesaba katarak güncelleme yapmak lazım
+        with st.spinner("Fiyatlar kontrol ediliyor..."):
             new_df = df.copy()
             for idx, row in new_df.iterrows():
-                if row['url'] and row['tur'] == 'Alisveris':
+                if row['url'] and row['tur'] == 'Alisveris' and str(row['url']).startswith('http'):
                      _, _, unit_p = scrape_product_info(row['url'])
                      qty = int(row['adet']) if row['adet'] else 1
                      if unit_p > 0:
@@ -253,7 +296,7 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
     with st.expander("➕ HIZLI EKLE (OTO-PİLOT)", expanded=True):
-        st.info("💡 Adet girince fiyat otomatik çarpılır (Örn: 2 tane seçersen fiyat 2 katı olur).")
+        st.info("💡 Linki yapıştır ve KAYDET'e bas. Ürünün adını, resmini ve kategorisini otomatik bulacağım.")
         
         with st.form("add_item"):
             c1, c2 = st.columns([3, 1])
@@ -264,17 +307,13 @@ with tabs[0]:
             cat_options = ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"]
             cat = c3.selectbox("Kategori", cat_options)
             
-            # YENİ: ADET GİRİŞİ
             qty = c4.number_input("Adet", min_value=1, value=1, step=1)
-            
             pri = c5.selectbox("Öncelik", ["Yüksek", "Orta", "Düşük"])
             
             if st.form_submit_button("KAYDET", use_container_width=True):
                 if url:
-                    with st.spinner("Hesaplanıyor..."):
+                    with st.spinner("İşleniyor..."):
                         title, img, s_price = scrape_product_info(url)
-                        
-                        # Fiyat Hesabı: (Çekilen veya Manuel) * Adet
                         unit_p = s_price if s_price > 0 else manual_price
                         final_total_price = unit_p * qty
                         
@@ -309,14 +348,18 @@ with tabs[0]:
         for i, (idx, row) in enumerate(view_df.iterrows()):
             with cols[i % 2]:
                 is_done = row['durum'] == "Alındı"
-                opacity = "0.5" if is_done else "1"
-                status_badge = "✅ ALINDI" if is_done else ""
+                
+                # Alındı ise overlay göster
+                overlay_html = ""
+                status_badge = ""
+                
+                if is_done:
+                    overlay_html = '<div class="overlay-bought"><span style="color:#2ecc71; font-size:2rem; font-weight:bold; border:3px solid #2ecc71; padding:10px 20px; border-radius:10px; background:rgba(0,0,0,0.8);">✅ ALINDI</span></div>'
                 
                 curr = float(row['fiyat'])
                 first = float(row['ilk_fiyat'])
                 piece_count = int(row['adet']) if row['adet'] else 1
                 
-                # Çoklu Alım Rozeti (Sadece 1'den büyükse göster)
                 qty_badge_html = ""
                 if piece_count > 1:
                     qty_badge_html = f'<div class="badge-qty">x{piece_count}</div>'
@@ -326,19 +369,20 @@ with tabs[0]:
                     trend_html = f"<span style='color:#2ecc71; font-weight:bold; margin-left:10px;'>🔻 İNDİRİMDE!</span>"
                 
                 st.markdown(f"""
-                <div class="grand-card" style="opacity:{opacity};">
+                <div class="grand-card">
+                    {overlay_html}
                     <div class="img-area">
                         <img src="{row['img']}">
                         <div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>
                         {qty_badge_html}
-                        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#2ecc71; font-size:2rem; font-weight:bold; text-shadow:0 0 10px black;">{status_badge}</div>
                     </div>
                     <div class="content-area">
                         <div style="display:flex; justify-content:space-between; color:#888; font-size:0.8rem; margin-bottom:5px;">
                             <span>{str(row['kategori']).upper()}</span>
-                            <span>{row['oncelik']} ÖNCELİK</span>
+                            <span>{row['oncelik']}</span>
                         </div>
-                        <h3 style="margin:5px 0; font-size:1.3rem; line-height:1.4;">{row['baslik']}</h3>
+                        <div class="card-title">{row['baslik']}</div>
+                        <div class="card-note">{row['notlar'] if row['notlar'] else ''}</div>
                         <div style="margin-top:15px; font-size:1.4rem; font-weight:bold;">
                             {curr:,.0f} TL {trend_html}
                         </div>
@@ -370,7 +414,7 @@ with tabs[1]:
         st.subheader("💸 Ekstra Giderler")
         with st.form("add_expense", clear_on_submit=True):
             ec1, ec2, ec3 = st.columns([2, 1, 1])
-            exp_name = ec1.text_input("Gider Adı", placeholder="Kuaför...")
+            exp_name = ec1.text_input("Gider Adı")
             exp_cost = ec2.number_input("Tutar (TL)", min_value=0)
             exp_cat = ec3.selectbox("Kategori", ["Düğün", "Balayı", "Diğer"])
             if st.form_submit_button("EKLE", use_container_width=True):
@@ -467,17 +511,15 @@ with tabs[2]:
 with tabs[3]:
     st.subheader("🤖 Yuva & Co. Akıllı Asistan")
     ai_col1, ai_col2 = st.columns(2)
-    
     with ai_col1:
         if st.button("🔍 Evi Analiz Et ve Eksikleri Söyle", use_container_width=True):
             with st.spinner("Liste taranıyor..."):
                 time.sleep(1.5)
                 cats = df[df['tur']=='Alisveris']['kategori'].unique()
-                msg = "Listeniz güzel ilerliyor. "
-                if "Mutfak" not in cats: msg += "Ancak **Mutfak** eşyaları eksik görünüyor. "
-                if "Elektronik" not in cats: msg += "**Elektronik** (TV, Süpürge) kategorisine bakmalısınız."
-                st.info(f"💡 **Analiz Sonucu:** {msg}")
-    
+                msg = "Analiz Tamamlandı. "
+                if "Mutfak" not in cats: msg += "**Mutfak** eşyaları eksik görünüyor. "
+                if "Elektronik" not in cats: msg += "**Elektronik** kategorisine bakmalısınız."
+                st.info(f"💡 **Sonuç:** {msg}")
     with ai_col2:
         if st.button("✨ Bana Fikir Ver", use_container_width=True):
             suggestions = ["Dyson Gen5detect", "Smeg Kettle", "Nespresso Kahve Makinesi", "Marshall Hoparlör"]
