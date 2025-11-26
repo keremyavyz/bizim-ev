@@ -2,7 +2,6 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime, date
 import time
 import plotly.express as px
@@ -16,80 +15,98 @@ st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 # --- 2. TEMA VE CSS ---
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark Luxury"
+if "view_mode" not in st.session_state:
+    st.session_state.view_mode = "Rahat (2'li)"
 
-# CSS (Görünüm Ayarları)
-common_css = """
+# Dinamik CSS Ayarları (Görünüm Moduna Göre)
+if st.session_state.view_mode == "Kompakt (4'lü)":
+    card_height = "280px" # Toplam kart boyu kısalır
+    img_height = "160px"  # Resim küçülür
+    title_size = "0.9rem" # Yazı küçülür
+    btn_padding = "2px 5px"
+    col_num = 4
+else:
+    card_height = "100%"
+    img_height = "320px"
+    title_size = "1.2rem"
+    btn_padding = "5px 10px"
+    col_num = 2
+
+common_css = f"""
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@200;300;400;500;600&display=swap');
-    body { font-family: 'Montserrat', sans-serif; }
-    h1, h2, h3, h4 { font-family: 'Playfair Display', serif !important; }
+    body {{ font-family: 'Montserrat', sans-serif; }}
+    h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; }}
     
-    .grand-card {
-        border-radius: 12px; overflow: hidden; margin-bottom: 25px; 
-        transition: transform 0.3s ease; position: relative;
-        height: 100%; display: flex; flex-direction: column;
-    }
-    .grand-card:hover { transform: translateY(-5px); }
+    /* KART YAPISI */
+    .grand-card {{
+        border-radius: 12px; overflow: hidden; margin-bottom: 20px; 
+        transition: transform 0.2s ease; position: relative;
+        height: {card_height}; display: flex; flex-direction: column;
+    }}
+    .grand-card:hover {{ transform: translateY(-3px); }}
     
-    .img-area {
-        width: 100%; height: 320px; background-color: #fff;
+    /* RESİM ALANI */
+    .img-area {{
+        width: 100%; height: {img_height}; background-color: #fff;
         display: flex; align-items: center; justify-content: center;
         position: relative; border-bottom: 1px solid rgba(255,255,255,0.1);
         overflow: hidden;
-    }
-    .img-area img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+    }}
+    .img-area img {{ width: 100%; height: 100%; object-fit: cover; object-position: center; }}
     
-    .content-area { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    /* İÇERİK ALANI */
+    .content-area {{ padding: 10px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }}
     
-    .card-title {
-        font-family: 'Playfair Display', serif; font-size: 1.1rem; line-height: 1.3;
-        height: 2.8em; overflow: hidden; display: -webkit-box;
+    .card-title {{
+        font-family: 'Playfair Display', serif; font-size: {title_size}; line-height: 1.2;
+        height: 2.4em; overflow: hidden; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 5px;
-    }
+    }}
     
-    .badge-corner {
-        position: absolute; top: 10px; left: 10px; padding: 4px 10px; border-radius: 6px; 
-        font-size: 0.7rem; font-weight: bold; text-transform: uppercase;
+    .badge-corner {{
+        position: absolute; top: 8px; left: 8px; padding: 3px 8px; border-radius: 4px; 
+        font-size: 0.6rem; font-weight: bold; text-transform: uppercase;
         box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 5;
-    }
-    .badge-qty {
-        position: absolute; bottom: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 10; border: 2px solid white;
-    }
-    .overlay-bought {
+    }}
+    .badge-qty {{
+        position: absolute; bottom: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 10; border: 2px solid white;
+    }}
+    .overlay-bought {{
         position: absolute; top:0; left:0; width:100%; height:100%;
         background: rgba(0,0,0,0.7); z-index: 20;
         display: flex; align-items: center; justify-content: center;
         pointer-events: none;
-    }
+    }}
 """
 
 css_dark = f"""<style>{common_css}
     .stApp {{ background-color: #050505; background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%); color: #e0e0e0; }}
-    .grand-card {{ background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }}
-    .grand-card:hover {{ border-color: #d4af37; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }}
+    .grand-card {{ background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }}
+    .grand-card:hover {{ border-color: #d4af37; box-shadow: 0 8px 20px rgba(212, 175, 55, 0.15); }}
     h1, h2, h3, h4, .big-font {{ color: #d4af37 !important; }}
     .badge-qty {{ background: #d4af37; color: #000; }}
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{ background-color: #1a1a1a !important; color: #d4af37 !important; border: 1px solid #444 !important; }}
-    .stButton>button {{ background-color: #222; color: #ccc; border: 1px solid #444; }}
+    .stButton>button {{ background-color: #222; color: #ccc; border: 1px solid #444; padding: {btn_padding}; font-size: 0.8rem; }}
     .stButton>button:hover {{ border-color: #d4af37; color: #d4af37; }}
 </style>"""
 
 css_light = f"""<style>{common_css}
     .stApp {{ background-color: #f8f9fa; color: #2c3e50; }}
     .grand-card {{ background: #fff; border: 1px solid #e0e0e0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
-    .grand-card:hover {{ border-color: #2c3e50; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }}
+    .grand-card:hover {{ border-color: #2c3e50; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }}
     h1, h2, h3, h4, .big-font {{ color: #2c3e50 !important; }}
     .badge-qty {{ background: #2c3e50; color: #fff; }}
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{ background-color: #fff !important; color: #2c3e50 !important; border: 1px solid #ccc !important; }}
-    .stButton>button {{ background-color: #fff; color: #555; border: 1px solid #ccc; }}
+    .stButton>button {{ background-color: #fff; color: #555; border: 1px solid #ccc; padding: {btn_padding}; font-size: 0.8rem; }}
     .stButton>button:hover {{ border-color: #2c3e50; color: #2c3e50; }}
 </style>"""
 
 if st.session_state.theme == "Dark Luxury": st.markdown(css_dark, unsafe_allow_html=True)
 else: st.markdown(css_light, unsafe_allow_html=True)
 
-# --- 3. FONKSİYONLAR ---
+# --- 3. HELPER FONKSİYONLAR ---
 def get_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     return conn.read(ttl=0)
@@ -124,7 +141,7 @@ def detect_category_from_title(title):
 @st.cache_data(ttl=600)
 def scrape_product_info(url):
     fallback_img = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
-    if not url or len(url) < 5: return "Ürün", fallback_img, 0
+    if not url or len(url) < 5: return "Yeni Ürün", fallback_img, 0
     try:
         encoded_url = urllib.parse.quote(url)
         api_url = f"https://api.microlink.io?url={encoded_url}&screenshot=false&meta=true"
@@ -134,10 +151,11 @@ def scrape_product_info(url):
             info = data.get('data', {})
             title = info.get('title', 'Yeni Ürün')
             image = info.get('image', {}).get('url', fallback_img)
+            if "Service Unavailable" in title or "Access Denied" in title: title = "Yeni Ürün (İsim Düzenle)"
             if not image: image = fallback_img
             return title, image, 0 
-        else: return "Ürün", fallback_img, 0
-    except: return "Ürün", fallback_img, 0
+    except: pass
+    return "Yeni Ürün (İsim Düzenle)", fallback_img, 0
 
 # --- 4. GİRİŞ ---
 if "user_name" not in st.session_state: st.session_state.user_name = None
@@ -171,8 +189,25 @@ except:
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state.user_name}")
     st.divider()
-    mode = st.radio("Tema", ["Dark Luxury", "Light Elegance"], index=0 if st.session_state.theme=="Dark Luxury" else 1)
-    if mode != st.session_state.theme: st.session_state.theme = mode; st.rerun()
+    
+    # GÖRÜNÜM AYARI
+    st.markdown("#### 👁️ Görünüm")
+    view_select = st.radio("", ["Rahat (2'li)", "Kompakt (4'lü)"], label_visibility="collapsed",
+                           index=0 if st.session_state.view_mode=="Rahat (2'li)" else 1)
+    if view_select != st.session_state.view_mode:
+        st.session_state.view_mode = view_select
+        st.rerun()
+        
+    st.divider()
+    
+    # TEMA AYARI
+    st.markdown("#### 🎨 Tema")
+    mode = st.radio("", ["Dark Luxury", "Light Elegance"], label_visibility="collapsed",
+                    index=0 if st.session_state.theme=="Dark Luxury" else 1)
+    if mode != st.session_state.theme:
+        st.session_state.theme = mode
+        st.rerun()
+        
     st.divider()
     if st.button("🔄 Yenile"): st.cache_data.clear(); st.rerun()
 
@@ -225,52 +260,51 @@ with tabs[0]:
     
     if not view_df.empty:
         view_df = view_df.iloc[::-1]
-        cols = st.columns(2) 
+        cols = st.columns(col_num) # Dinamik kolon sayısı (2 veya 4)
+        
         for i, (idx, row) in enumerate(view_df.iterrows()):
-            with cols[i % 2]:
+            with cols[i % col_num]:
                 is_done = row['durum'] == "Alındı"
                 card_id = row['id']
-                overlay_html = f'<div class="overlay-bought"><span style="color:#2ecc71; font-size:2rem; font-weight:bold; border:3px solid #2ecc71; padding:10px 20px; border-radius:10px; background:rgba(0,0,0,0.8);">✅ ALINDI</span></div>' if is_done else ""
+                overlay_html = f'<div class="overlay-bought"><span style="color:#2ecc71; font-size:1.5rem; font-weight:bold; border:3px solid #2ecc71; padding:5px 15px; border-radius:10px; background:rgba(0,0,0,0.8);">ALINDI</span></div>' if is_done else ""
                 curr = float(row['fiyat'])
                 piece_count = int(row['adet']) if row['adet'] else 1
                 qty_badge_html = f'<div class="badge-qty">x{piece_count}</div>' if piece_count > 1 else ""
+                img_src = row['img'] if row['img'] and len(str(row['img'])) > 5 else "https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yok"
                 
-                # RESİM VE HATA YÖNETİMİ (ÖNEMLİ DÜZELTME)
-                img_src = row['img'] if row['img'] and len(str(row['img'])) > 5 else "https://placehold.co/400x300/111/444?text=Resim+Yok"
-                
-                # HTML KART (TEK SATIRDA YAZILDI - BOZULMAYI ÖNLER)
-                card_html = f"""<div class="grand-card">{overlay_html}<div class="img-area"><img src="{img_src}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/111/444?text=Hata';"><div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>{qty_badge_html}</div><div class="content-area"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.8rem; margin-bottom:5px;"><span>{str(row['kategori']).upper()}</span><span>{row['oncelik']}</span></div><div class="card-title">{row['baslik']}</div><div style="margin-top:15px; font-size:1.4rem; font-weight:bold;">{curr:,.0f} TL</div></div></div>"""
-                
+                # Kart HTML
+                card_html = f"""<div class="grand-card">{overlay_html}<div class="img-area"><img src="{img_src}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/111/444?text=Hata';"><div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>{qty_badge_html}</div><div class="content-area"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.7rem; margin-bottom:5px;"><span>{str(row['kategori']).upper()}</span><span>{row['oncelik']}</span></div><div class="card-title">{row['baslik']}</div><div style="margin-top:auto; font-size:{'1.2rem' if col_num==2 else '1rem'}; font-weight:bold;">{curr:,.0f} TL</div></div></div>"""
                 st.markdown(card_html, unsafe_allow_html=True)
                 
-                # BUTONLAR
-                with st.expander("Resmi Düzelt / Düzenle"):
+                # Alt Butonlar (Sadece Detaylı Modda Geniş, Kompaktta Buton)
+                with st.expander("⚙️ İşlem"):
                      with st.form(f"edit_{card_id}"):
-                         e_img = st.text_input("Resim Linki", value=row['img'])
+                         e_img = st.text_input("Resim", value=row['img'])
                          e_prc = st.number_input("Fiyat", value=float(row['fiyat']))
                          if st.form_submit_button("GÜNCELLE"):
                              idx_orig = df[df['id'] == card_id].index[0]
                              df.at[idx_orig, 'img'] = e_img
                              df.at[idx_orig, 'fiyat'] = e_prc
                              update_all_data(df); st.rerun()
-
-                c1, c2, c3 = st.columns([2, 2, 1])
-                with c1:
-                    if not is_done:
-                        if st.button("✅ ALDIK", key=f"buy_{card_id}", use_container_width=True):
-                            df.at[df[df['id'] == card_id].index[0], 'durum'] = "Alındı"; update_all_data(df); st.rerun()
-                    else:
-                        if st.button("↩️ İPTAL", key=f"ret_{card_id}", use_container_width=True):
-                            df.at[df[df['id'] == card_id].index[0], 'durum'] = "Alınacak"; update_all_data(df); st.rerun()
-                with c2: st.link_button("🔗 GİT", row['url'], use_container_width=True)
-                with c3:
-                    if st.button("🗑️", key=f"del_{card_id}", use_container_width=True): delete_data(card_id); st.rerun()
+                     
+                     b1, b2 = st.columns(2)
+                     with b1:
+                         if not is_done:
+                             if st.button("✅ ALDIK", key=f"buy_{card_id}", use_container_width=True):
+                                df.at[df[df['id'] == card_id].index[0], 'durum'] = "Alındı"; update_all_data(df); st.rerun()
+                         else:
+                             if st.button("↩️ İPTAL", key=f"ret_{card_id}", use_container_width=True):
+                                df.at[df[df['id'] == card_id].index[0], 'durum'] = "Alınacak"; update_all_data(df); st.rerun()
+                     with b2:
+                         if st.button("🗑️ SİL", key=f"del_{card_id}", use_container_width=True): delete_data(card_id); st.rerun()
+                     
+                     if row['url'] and len(str(row['url'])) > 5: st.link_button("🔗 Siteye Git", row['url'], use_container_width=True)
                 st.write("")
 
-# --- TAB 2: PLANLAYICI ---
+# --- TAB 2, 3, 4 AYNEN ---
 with tabs[1]:
-    c1, c2 = st.columns([1, 1])
-    with c1:
+    col_p1, col_p2 = st.columns([1, 1])
+    with col_p1:
         st.subheader("💸 Ekstra Giderler")
         with st.form("add_expense", clear_on_submit=True):
             e1, e2 = st.columns([2, 1])
@@ -301,7 +335,6 @@ with tabs[1]:
             with b2: 
                 if st.button("🗑️", key=f"dd_{r['id']}"): delete_data(r['id']); st.rerun()
 
-# --- TAB 3: ANALİZ ---
 with tabs[2]:
     c1, c2, c3 = st.columns(3)
     it_c = df[df['tur'] == 'Alisveris']['fiyat'].sum()
@@ -310,7 +343,6 @@ with tabs[2]:
     if not df[df['tur']=='Alisveris'].empty:
         st.plotly_chart(px.pie(df[df['tur']=='Alisveris'], values='fiyat', names='kategori', hole=0.5), use_container_width=True)
 
-# --- TAB 4: AI ---
 with tabs[3]:
     st.subheader("🤖 AI Asistan")
     if st.button("🔍 Evi Analiz Et"):
