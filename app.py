@@ -2,7 +2,6 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime, date
 import time
 import plotly.express as px
@@ -17,7 +16,7 @@ st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark Luxury"
 
-# CSS: KARTLAR VE DÜZEN
+# CSS: ORTAK AYARLAR & FONTLAR
 common_css = """
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@200;300;400;500;600&display=swap');
     
@@ -26,9 +25,9 @@ common_css = """
     
     /* KART YAPISI */
     .grand-card {
-        border-radius: 12px; 
+        border-radius: 16px; 
         overflow: hidden; 
-        margin-bottom: 25px; 
+        margin-bottom: 30px; 
         transition: transform 0.3s ease;
         position: relative;
         height: 100%;
@@ -36,15 +35,21 @@ common_css = """
     }
     .grand-card:hover { transform: translateY(-5px); }
     
-    /* RESİM ALANI */
+    /* RESİM ALANI (SABİT VE GÜZEL) */
     .img-area {
-        width: 100%; height: 300px; 
+        width: 100%; height: 320px; 
         background-color: #fff;
         display: flex; align-items: center; justify-content: center;
-        position: relative; border-bottom: 1px solid rgba(255,255,255,0.1);
+        position: relative;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
         overflow: hidden;
     }
-    .img-area img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+    /* Resim Kutuya Tam Otursun */
+    .img-area img { 
+        width: 100%; height: 100%; 
+        object-fit: cover; /* Keserek doldur */
+        object-position: center;
+    }
     
     /* İÇERİK ALANI */
     .content-area { 
@@ -52,21 +57,29 @@ common_css = """
     }
     
     .card-title {
-        font-family: 'Playfair Display', serif; font-size: 1.1rem; line-height: 1.3;
+        font-family: 'Playfair Display', serif; font-size: 1.2rem; line-height: 1.3;
         height: 2.8em; overflow: hidden; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 5px;
     }
     
-    /* ETİKETLER */
+    /* BADGE & ETİKETLER */
     .badge-corner {
-        position: absolute; top: 10px; left: 10px; padding: 4px 10px; border-radius: 6px; 
-        font-size: 0.7rem; font-weight: bold; text-transform: uppercase;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 5;
+        position: absolute; top: 15px; left: 15px;
+        padding: 6px 12px; border-radius: 8px; 
+        font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        z-index: 5;
     }
+    
+    /* ADET YUVARLAĞI (x2) */
     .badge-qty {
-        position: absolute; bottom: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 10; border: 2px solid white;
+        position: absolute; bottom: 15px; right: 15px;
+        width: 45px; height: 45px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 1.1rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        z-index: 10;
+        border: 2px solid white;
     }
 
     .expense-row {
@@ -77,16 +90,25 @@ common_css = """
     
     .overlay-bought {
         position: absolute; top:0; left:0; width:100%; height:100%;
-        background: rgba(0,0,0,0.6); z-index: 20;
+        background: rgba(0,0,0,0.7); z-index: 20;
         display: flex; align-items: center; justify-content: center;
         pointer-events: none;
     }
+    
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
 """
 
+# CSS: DARK MODE
 css_dark = f"""
     <style>
         {common_css}
-        .stApp {{ background-color: #050505; background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%); color: #e0e0e0; }}
+        .stApp {{
+            background-color: #050505;
+            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%);
+            color: #e0e0e0;
+        }}
         .grand-card {{ background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }}
         .grand-card:hover {{ border-color: #d4af37; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }}
         h1, h2, h3, h4, .big-font {{ color: #d4af37 !important; text-shadow: 0px 0px 20px rgba(212, 175, 55, 0.2); }}
@@ -102,6 +124,7 @@ css_dark = f"""
     </style>
 """
 
+# CSS: LIGHT MODE
 css_light = f"""
     <style>
         {common_css}
@@ -144,10 +167,9 @@ def delete_data(item_id):
     conn.update(worksheet="Sayfa1", data=updated_df)
 
 def detect_category_from_title(title):
-    if not title: return "Diğer"
     title = str(title).lower()
     keywords = {
-        "Mutfak": ["tencere", "tava", "tabak", "çatal", "kaşık", "bıçak", "bardak", "kupa", "airfryer", "robot", "blender", "tost", "çay", "kahve", "fırın", "sürahi", "saklama", "kek", "kalıp", "rende", "cezve"],
+        "Mutfak": ["tencere", "tava", "tabak", "çatal", "kaşık", "bıçak", "bardak", "kupa", "airfryer", "robot", "blender", "tost", "çay", "kahve", "fırın", "sürahi", "saklama", "kek", "kalıp", "rende", "cezve", "yemek takımı"],
         "Salon": ["koltuk", "kanepe", "berjer", "masa", "sandalye", "sehpa", "ünite", "kitaplık", "konsol", "vitrin", "halı", "perde", "kırlent", "vazo", "avize", "lambader"],
         "Yatak Odası": ["nevresim", "yatak", "baza", "başlık", "yastık", "yorgan", "battaniye", "pike", "çarşaf", "gardırop", "şifonyer", "komodin", "hurç"],
         "Elektronik": ["tv", "televizyon", "süpürge", "ütü", "kurutma", "saç", "düzleştirici", "hoparlör", "kulaklık", "şarj", "robot"],
@@ -158,51 +180,42 @@ def detect_category_from_title(title):
         if any(k in title for k in keys): return cat
     return "Diğer"
 
-# --- 🛡️ ÇÖKMEYEN SCRAPER ---
+# --- 🛡️ GÜÇLÜ SCRAPER (MICROLINK API) ---
 @st.cache_data(ttl=600)
 def scrape_product_info(url):
-    fallback_img = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
+    """
+    Bu fonksiyon Microlink API'sini kullanır. 
+    Sanki bir tarayıcıymış gibi davranır ve resmi getirir.
+    """
+    # Şık bir yedek görsel
+    fallback_img = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png" 
     
-    try:
-        # 1. İstek At
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=5)
-        
-        if response.status_code != 200:
-            return "Ürün (İsim Giriniz)", fallback_img, 0
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 2. Başlık Bulma (Hata Korumalı)
-        title = "Yeni Ürün"
-        # Önce meta tag'e bak
-        og_title = soup.find("meta", property="og:title")
-        if og_title and og_title.get("content"):
-            title = og_title["content"].strip()
-        # Yoksa <title> tagine bak
-        elif soup.title and soup.title.string:
-            title = soup.title.string.strip()
-            
-        # 3. Resim Bulma
-        img = fallback_img
-        og_image = soup.find("meta", property="og:image")
-        if og_image and og_image.get("content"):
-            img = og_image["content"]
-            
-        # 4. Fiyat Bulma (En zor kısım, hata verirse 0 dön)
-        price = 0
-        try:
-            price_meta = soup.find("meta", property="product:price:amount")
-            if price_meta and price_meta.get("content"):
-                price = float(price_meta["content"])
-        except:
-            price = 0
-                
-        return title, img, price
+    if not url or len(url) < 5:
+        return "Ürün (İsim Giriniz)", fallback_img, 0
 
-    except Exception:
-        # Ne hata olursa olsun programı durdurma, boş dön
-        return "Ürün (Manuel Giriniz)", fallback_img, 0
+    try:
+        # URL'yi güvenli hale getir
+        encoded_url = urllib.parse.quote(url)
+        # Microlink API'ye istek at (Ücretsiz ve güçlüdür)
+        api_url = f"https://api.microlink.io?url={encoded_url}&screenshot=false&meta=true"
+        
+        response = requests.get(api_url, timeout=10)
+        data = response.json()
+        
+        if data.get('status') == 'success':
+            info = data.get('data', {})
+            title = info.get('title', 'Yeni Ürün')
+            image = info.get('image', {}).get('url', fallback_img)
+            
+            # Eğer resim yoksa yedeği kullan
+            if not image: image = fallback_img
+            
+            return title, image, 0 
+        else:
+            return "Ürün", fallback_img, 0
+            
+    except Exception as e:
+        return "Ürün (Hata)", fallback_img, 0
 
 # --- 4. GİRİŞ ---
 if "user_name" not in st.session_state: st.session_state.user_name = None
@@ -220,19 +233,23 @@ if not st.session_state.user_name:
             if col_b.button("BÜŞRA"): st.session_state.user_name = "Büşra"; st.rerun()
     st.stop()
 
-# --- 5. DATA HAZIRLIK ---
+# --- 5. DATA HAZIRLIK (OTOMATİK TAMİR) ---
 try: 
     df = get_data()
-    cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet']
-    for col in cols:
+    # Gerekli kolonları kontrol et ve yoksa ekle (Hata vermemesi için)
+    required_cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet']
+    for col in required_cols:
         if col not in df.columns: df[col] = ""
+    
     if 'id' in df.columns: df['id'] = df['id'].astype(str)
     
+    # Sayıları düzelt
     df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
     df['ilk_fiyat'] = pd.to_numeric(df['ilk_fiyat'], errors='coerce').fillna(0)
     df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1).astype(int)
 except: 
-    df = pd.DataFrame(columns=cols)
+    # Hiç veri yoksa boş tablo yarat
+    df = pd.DataFrame(columns=required_cols)
 
 # --- 6. SIDEBAR ---
 with st.sidebar:
@@ -271,38 +288,35 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 
 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
-    with st.expander("➕ ÜRÜN EKLE (RESİM GARANTİLİ)", expanded=True):
-        st.info("💡 İpucu: Resim çıkmazsa, resmin üzerine sağ tıklayıp 'Resim Adresini Kopyala' diyerek alttaki kutuya yapıştırın.")
+    with st.expander("➕ HIZLI EKLE (OTO-PİLOT & MANUEL)", expanded=True):
+        st.info("💡 Site linkini yapıştırıp KAYDET'e bas. Resim çıkmazsa 2. kutuya resim linki yapıştır.")
         
         with st.form("add_item"):
-            # Link ve Manuel Resim
-            c1, c2 = st.columns([3, 1])
+            # Linkler
+            c1, c2 = st.columns([1, 1])
             url = c1.text_input("1. Ürün Linki")
-            img_manual = c2.text_input("2. Resim Linki (Zorunlu Değil)")
+            img_manual = c2.text_input("2. Resim Linki (Otomatik Çıkmazsa)")
             
-            # Kategori, Fiyat, Adet
+            # Detaylar
             c3, c4, c5, c6 = st.columns([2, 1, 1, 2])
             cat_options = ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"]
             cat = c3.selectbox("Kategori", cat_options)
             manual_price = c4.number_input("Birim Fiyat", min_value=0.0)
-            
-            # x2 ADET GİRİŞİ
-            qty = c5.number_input("Adet (Kaç Tane?)", min_value=1, value=1, step=1)
-            
+            qty = c5.number_input("Adet", min_value=1, value=1)
             pri = c6.selectbox("Öncelik", ["Yüksek", "Orta", "Düşük"])
             
             if st.form_submit_button("KAYDET", use_container_width=True):
                 if url or img_manual:
-                    with st.spinner("Kaydediliyor..."):
-                        # 1. Scrape (Hata Korumalı)
+                    with st.spinner("İşleniyor..."):
+                        # 1. Scrape
                         title, img, s_price = "Manuel Ürün", "", 0
                         if url:
                             title, img, s_price = scrape_product_info(url)
                         
-                        # Manuel resim varsa her zaman onu kullan
+                        # Manuel resim varsa onu kullan (Baskın)
                         if img_manual: img = img_manual
                         
-                        # Fiyat Hesabı
+                        # Fiyat Hesabı (Adet ile çarp)
                         unit_p = s_price if s_price > 0 else manual_price
                         final_total_price = unit_p * qty
                         
@@ -320,7 +334,7 @@ with tabs[0]:
                         }])
                         df = pd.concat([df, new_row], ignore_index=True)
                         update_all_data(df)
-                        st.success("Eklendi!")
+                        st.success(f"Eklendi! {qty} adet.")
                         time.sleep(1)
                         st.rerun()
                 else:
@@ -347,7 +361,7 @@ with tabs[0]:
                 curr = float(row['fiyat'])
                 first = float(row['ilk_fiyat'])
                 
-                # x2 ROZETİ
+                # Adet (x2) Rozeti
                 piece_count = int(row['adet']) if row['adet'] else 1
                 qty_badge_html = ""
                 if piece_count > 1:
@@ -378,9 +392,10 @@ with tabs[0]:
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # ALT BUTONLAR
                 with st.expander("🖼️ Resmi / Bilgileri Düzenle"):
                      with st.form(f"edit_{card_id}"):
-                         e_img = st.text_input("Resim Linki (Doğrusunu Yapıştır)", value=row['img'])
+                         e_img = st.text_input("Resim Linki", value=row['img'])
                          e_prc = st.number_input("Fiyat", value=float(row['fiyat']))
                          if st.form_submit_button("Güncelle"):
                              idx_orig = df[df['id'] == card_id].index[0]
