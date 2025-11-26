@@ -16,22 +16,24 @@ st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark Luxury"
 
-# CSS (GÖRÜNTÜ MOTORU - RESİM YAZIYA DÖNÜŞMESİN DİYE DÜZELTİLDİ)
+# CSS
 common_css = """
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@200;300;400;500;600&display=swap');
     body { font-family: 'Montserrat', sans-serif; }
     h1, h2, h3, h4 { font-family: 'Playfair Display', serif !important; }
     
     .grand-card {
-        border-radius: 0 0 12px 12px; overflow: hidden; margin-bottom: 10px; 
-        position: relative; height: 100%; display: flex; flex-direction: column;
+        border-radius: 12px; overflow: hidden; margin-bottom: 25px; 
+        transition: transform 0.3s ease; position: relative;
+        height: 100%; display: flex; flex-direction: column;
     }
+    .grand-card:hover { transform: translateY(-5px); }
     
     .img-area {
         width: 100%; height: 300px; background-color: #fff;
         display: flex; align-items: center; justify-content: center;
         position: relative; border-bottom: 1px solid rgba(255,255,255,0.1);
-        overflow: hidden; border-radius: 12px 12px 0 0;
+        overflow: hidden;
     }
     .img-area img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
     
@@ -56,11 +58,15 @@ common_css = """
         pointer-events: none;
     }
     
-    .expense-row {
+    /* EKSTRA GİDER KARTI */
+    .expense-card {
         padding: 15px; border-radius: 10px; margin-bottom: 10px;
-        display: flex; justify-content: space-between; align-items: center;
         border-left: 5px solid #d4af37;
     }
+    .expense-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; }
+    .expense-details { display: flex; justify-content: space-between; font-size: 0.9rem; margin-top: 5px; color: #aaa; }
+    .paid-badge { color: #2ecc71; font-weight: bold; }
+    .remain-badge { color: #e74c3c; font-weight: bold; }
 """
 
 css_dark = f"""<style>{common_css}
@@ -69,7 +75,7 @@ css_dark = f"""<style>{common_css}
     .grand-card:hover {{ border-color: #d4af37; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }}
     h1, h2, h3, h4, .big-font {{ color: #d4af37 !important; }}
     .badge-qty {{ background: #d4af37; color: #000; }}
-    .expense-row {{ background: rgba(255,255,255,0.05); }}
+    .expense-card {{ background: rgba(255,255,255,0.05); }}
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{ background-color: #1a1a1a !important; color: #d4af37 !important; border: 1px solid #444 !important; }}
     .stButton>button {{ background-color: #222; color: #ccc; border: 1px solid #444; }}
     .stButton>button:hover {{ border-color: #d4af37; color: #d4af37; }}
@@ -81,7 +87,7 @@ css_light = f"""<style>{common_css}
     .grand-card:hover {{ border-color: #2c3e50; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }}
     h1, h2, h3, h4, .big-font {{ color: #2c3e50 !important; }}
     .badge-qty {{ background: #2c3e50; color: #fff; }}
-    .expense-row {{ background: #fff; border: 1px solid #eee; border-left: 5px solid #2c3e50; }}
+    .expense-card {{ background: #fff; border: 1px solid #eee; border-left: 5px solid #2c3e50; }}
     .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{ background-color: #fff !important; color: #2c3e50 !important; border: 1px solid #ccc !important; }}
     .stButton>button {{ background-color: #fff; color: #555; border: 1px solid #ccc; }}
     .stButton>button:hover {{ border-color: #2c3e50; color: #2c3e50; }}
@@ -160,16 +166,20 @@ if not st.session_state.user_name:
 # --- 5. DATA ---
 try: 
     df = get_data()
-    cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet']
+    cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
     for c in cols:
         if c not in df.columns: df[c] = ""
     if 'id' in df.columns: df['id'] = df['id'].astype(str)
+    
+    # Sayısal Dönüşümler
     df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
     df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1).astype(int)
+    df['odenen'] = pd.to_numeric(df['odenen'], errors='coerce').fillna(0)
+    
 except: 
     df = pd.DataFrame(columns=cols)
 
-# --- 6. SIDEBAR ---
+# --- 6. MENÜ ---
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state.user_name}")
     st.divider()
@@ -188,15 +198,23 @@ with c_head2:
     st.markdown(f"<div style='text-align:right; border-left:4px solid {color}; padding-left:15px;'><span style='font-size:2rem; font-weight:bold; color:{color};'>{days_left}</span> <span style='font-size:1rem;'>GÜN</span></div>", unsafe_allow_html=True)
 
 st.write("") 
-tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 AI ASİSTAN"])
+tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI & GİDER", "📊 ANALİZ", "🤖 AI ASİSTAN"])
 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
-    with st.expander("➕ HIZLI EKLE (GARANTİLİ)", expanded=True):
+    # --- FİLTRE VE SIRALAMA PANELİ ---
+    with st.container():
+        c_filt1, c_filt2 = st.columns(2)
+        filter_status = c_filt1.selectbox("Durum Filtrele", ["Tümü", "Alınacaklar", "Alınanlar"])
+        sort_opt = c_filt2.selectbox("Sıralama", ["En Yeni", "En Eski", "En Pahalı", "En Ucuz"])
+        st.write("")
+
+    # EKLEME MODÜLÜ
+    with st.expander("➕ HIZLI EKLE", expanded=False):
         with st.form("add_item"):
             c1, c2 = st.columns([1, 1])
-            url = c1.text_input("1. Ürün Linki")
-            img_manual = c2.text_input("2. Resim Linki (Otomatik Çıkmazsa Buraya Yapıştır)")
+            url = c1.text_input("Ürün Linki")
+            img_manual = c2.text_input("Resim Linki (Opsiyonel - Sağ Tıkla Kopyala)")
             c3, c4, c5, c6 = st.columns([2, 1, 1, 2])
             cat = c3.selectbox("Kategori", ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"])
             manual_price = c4.number_input("Birim Fiyat", min_value=0.0)
@@ -215,56 +233,59 @@ with tabs[0]:
                         "ekleyen": st.session_state.user_name, "tur": "Alisveris",
                         "kategori": final_cat, "baslik": title, 
                         "fiyat": final_total_price, "ilk_fiyat": final_total_price,
-                        "url": url, "img": img, "oncelik": pri, "notlar": "", "durum": "Alınacak", "adet": qty
+                        "url": url, "img": img, "oncelik": pri, "notlar": "", "durum": "Alınacak", "adet": qty, "odenen": 0
                     }])
                     df = pd.concat([df, new_row], ignore_index=True)
                     update_all_data(df)
                     st.success("Eklendi!"); time.sleep(1); st.rerun()
 
+    # LİSTELEME MANTIĞI
     all_cats = [c for c in df['kategori'].unique() if c]
-    filter_cat = st.multiselect("Filtrele:", all_cats, default=all_cats)
+    filter_cat = st.multiselect("Kategori Filtrele:", all_cats, default=all_cats)
+    
+    # Ana Filtre
     view_df = df[(df['kategori'].isin(filter_cat)) & (df['tur'] == 'Alisveris')]
     
+    # Durum Filtresi
+    if filter_status == "Alınacaklar": view_df = view_df[view_df['durum'] != 'Alındı']
+    elif filter_status == "Alınanlar": view_df = view_df[view_df['durum'] == 'Alındı']
+    
+    # Sıralama
+    if sort_opt == "En Yeni": view_df = view_df.sort_values('id', ascending=False)
+    elif sort_opt == "En Eski": view_df = view_df.sort_values('id', ascending=True)
+    elif sort_opt == "En Pahalı": view_df = view_df.sort_values('fiyat', ascending=False)
+    elif sort_opt == "En Ucuz": view_df = view_df.sort_values('fiyat', ascending=True)
+    
     if not view_df.empty:
-        view_df = view_df.iloc[::-1]
         cols = st.columns(2) 
         for i, (idx, row) in enumerate(view_df.iterrows()):
             with cols[i % 2]:
-                # Değişkenler
                 is_done = row['durum'] == "Alındı"
                 card_id = row['id']
+                overlay_html = f'<div class="overlay-bought"><span style="color:#2ecc71; font-size:2rem; font-weight:bold; border:3px solid #2ecc71; padding:10px 20px; border-radius:10px; background:rgba(0,0,0,0.8);">✅ ALINDI</span></div>' if is_done else ""
                 curr = float(row['fiyat'])
                 piece_count = int(row['adet']) if row['adet'] else 1
+                qty_badge_html = f'<div class="badge-qty">x{piece_count}</div>' if piece_count > 1 else ""
                 img_src = row['img'] if row['img'] and len(str(row['img'])) > 5 else "https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yok"
                 
-                # HTML Parçaları
-                overlay = f'<div class="overlay-bought"><span style="color:#2ecc71; font-size:2rem; font-weight:bold; border:3px solid #2ecc71; padding:10px 20px; border-radius:10px; background:rgba(0,0,0,0.8);">✅ ALINDI</span></div>' if is_done else ""
-                badge_qty = f'<div class="badge-qty">x{piece_count}</div>' if piece_count > 1 else ""
-                
-                # SİLME BUTONU (SAĞ ÜST) - Kartın Dışında Üstünde
-                c_label, c_del = st.columns([5, 1])
-                with c_label: st.markdown(f"**{row['ekleyen']}** ekledi • {row['tarih']}")
-                with c_del: 
-                    if st.button("❌", key=f"quick_del_{card_id}", help="Sil"): delete_data(card_id); st.rerun()
-
-                # KART HTML (Tek Satır - Bozulmaz)
-                card_html = f"""<div class="grand-card">{overlay}<div class="img-area"><img src="{img_src}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/111/444?text=Resim+Hata';">{badge_qty}</div><div class="content-area"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.8rem; margin-bottom:5px;"><span>{str(row['kategori']).upper()}</span><span>{row['oncelik']}</span></div><div class="card-title">{row['baslik']}</div><div style="margin-top:15px; font-size:1.4rem; font-weight:bold;">{curr:,.0f} TL</div></div></div>"""
+                card_html = f"""<div class="grand-card">{overlay_html}<div class="img-area"><img src="{img_src}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/111/444?text=Hata';"><div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>{qty_badge_html}</div><div class="content-area"><div style="display:flex; justify-content:space-between; color:#888; font-size:0.8rem; margin-bottom:5px;"><span>{str(row['kategori']).upper()}</span><span>{row['oncelik']}</span></div><div class="card-title">{row['baslik']}</div><div style="margin-top:15px; font-size:1.4rem; font-weight:bold;">{curr:,.0f} TL</div></div></div>"""
                 st.markdown(card_html, unsafe_allow_html=True)
                 
-                # AKSİYONLAR
-                with st.expander("✏️ Düzenle"):
+                with st.expander("✏️ Düzenle / Link"):
                      with st.form(f"edit_{card_id}"):
-                         e_title = st.text_input("Ürün Adı", value=row['baslik'])
-                         e_img = st.text_input("Resim Linki", value=row['img'])
+                         e_url = st.text_input("Link", value=row['url'])
+                         e_img = st.text_input("Resim", value=row['img'])
                          e_prc = st.number_input("Fiyat", value=float(row['fiyat']))
+                         e_qty = st.number_input("Adet", value=int(row['adet']))
                          if st.form_submit_button("GÜNCELLE"):
                              idx_orig = df[df['id'] == card_id].index[0]
-                             df.at[idx_orig, 'baslik'] = e_title
+                             df.at[idx_orig, 'url'] = e_url
                              df.at[idx_orig, 'img'] = e_img
-                             df.at[idx_orig, 'fiyat'] = e_prc
+                             df.at[idx_orig, 'fiyat'] = e_prc * e_qty
+                             df.at[idx_orig, 'adet'] = e_qty
                              update_all_data(df); st.rerun()
 
-                c1, c2 = st.columns([1, 1])
+                c1, c2, c3 = st.columns([2, 2, 1])
                 with c1:
                     if not is_done:
                         if st.button("✅ ALDIK", key=f"buy_{card_id}", use_container_width=True):
@@ -273,32 +294,60 @@ with tabs[0]:
                         if st.button("↩️ İPTAL", key=f"ret_{card_id}", use_container_width=True):
                             df.at[df[df['id'] == card_id].index[0], 'durum'] = "Alınacak"; update_all_data(df); st.rerun()
                 with c2: 
-                    if row['url'] and len(str(row['url'])) > 5: st.link_button("🔗 SİTEYE GİT", row['url'], use_container_width=True)
+                    if row['url'] and len(str(row['url'])) > 5: st.link_button("🔗 GİT", row['url'], use_container_width=True)
+                with c3:
+                    if st.button("🗑️", key=f"del_{card_id}", use_container_width=True): delete_data(card_id); st.rerun()
                 st.write("")
 
-# --- TAB 2: PLANLAYICI ---
+# --- TAB 2: PLANLAYICI (GELİŞMİŞ KAPORA SİSTEMİ) ---
 with tabs[1]:
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        st.subheader("💸 Ekstra Giderler")
+    col_p1, col_p2 = st.columns([1, 1])
+    with col_p1:
+        st.subheader("💸 Ekstra Giderler (Hizmet vb.)")
         with st.form("add_expense", clear_on_submit=True):
             e1, e2 = st.columns([2, 1])
-            nm = e1.text_input("Gider Adı"); pr = e2.number_input("Tutar", min_value=0)
-            if st.form_submit_button("EKLE", use_container_width=True):
-                new_row = pd.DataFrame([{"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "ekleyen": st.session_state.user_name, "tur": "Ekstra", "baslik": nm, "fiyat": pr, "kategori": "Diğer", "ilk_fiyat": pr, "url":"", "img":"", "oncelik":"", "notlar":"", "durum":"", "adet": 1}])
+            nm = e1.text_input("Gider Adı (Düğün Salonu vb.)")
+            pr = e2.number_input("TOPLAM Tutar (TL)", min_value=0)
+            paid = st.number_input("ÖDENEN Kapora/Tutar (TL)", min_value=0.0)
+            cat = st.selectbox("Kategori", ["Düğün", "Balayı", "Diğer"])
+            
+            if st.form_submit_button("GİDER EKLE", use_container_width=True):
+                new_row = pd.DataFrame([{
+                    "id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"),
+                    "ekleyen": st.session_state.user_name, "tur": "Ekstra", 
+                    "baslik": nm, "fiyat": pr, "odenen": paid, # Fiyat=Toplam, Odenen=Odenen
+                    "kategori": cat, "ilk_fiyat": pr, "url":"", "img":"", "oncelik":"", "notlar":"", "durum":"", "adet": 1
+                }])
                 df = pd.concat([df, new_row], ignore_index=True); update_all_data(df); st.rerun()
+        
         exps = df[df['tur'] == 'Ekstra']
-        for i, r in exps.iterrows():
-            st.markdown(f"<div class='expense-row'><div><b>{r['baslik']}</b></div><div>{r['fiyat']:,.0f} TL</div></div>", unsafe_allow_html=True)
-            if st.button("Sil", key=f"del_ex_{r['id']}"): delete_data(r['id']); st.rerun()
+        if not exps.empty:
+            for i, r in exps.iterrows():
+                total = float(r['fiyat'])
+                paid = float(r['odenen'])
+                remain = total - paid
+                
+                st.markdown(f"""
+                <div class="expense-card">
+                    <div class="expense-header">
+                        <span>{r['baslik']}</span>
+                        <span>{total:,.0f} TL</span>
+                    </div>
+                    <div class="expense-details">
+                        <span class="paid-badge">✅ Ödenen: {paid:,.0f} TL</span>
+                        <span class="remain-badge">⏳ Kalan: {remain:,.0f} TL</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("Sil", key=f"del_ex_{r['id']}"): delete_data(r['id']); st.rerun()
 
-    with c2:
+    with col_p2:
         st.subheader("📝 Yapılacaklar")
         with st.form("new_todo", clear_on_submit=True):
             t1, t2 = st.columns([3, 1])
             tsk = t1.text_input("Görev"); 
             if t2.form_submit_button("EKLE"):
-                new_row = pd.DataFrame([{"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "ekleyen": st.session_state.user_name, "tur": "ToDo", "baslik": tsk, "durum": "Yapılacak", "kategori":"", "fiyat":0, "ilk_fiyat":0, "url":"", "img":"", "oncelik":"", "notlar":"", "adet": 1}])
+                new_row = pd.DataFrame([{"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "ekleyen": st.session_state.user_name, "tur": "ToDo", "baslik": tsk, "durum": "Yapılacak", "kategori":"", "fiyat":0, "ilk_fiyat":0, "url":"", "img":"", "oncelik":"", "notlar":"", "adet": 1, "odenen":0}])
                 df = pd.concat([df, new_row], ignore_index=True); update_all_data(df); st.rerun()
         todos = df[df['tur'] == 'ToDo']
         for i, r in todos.iterrows():
@@ -313,13 +362,24 @@ with tabs[1]:
 # --- TAB 3: ANALİZ ---
 with tabs[2]:
     c1, c2, c3 = st.columns(3)
-    it_c = df[df['tur'] == 'Alisveris']['fiyat'].sum()
-    ex_c = df[df['tur'] == 'Ekstra']['fiyat'].sum()
-    c1.metric("TOPLAM", f"{it_c+ex_c:,.0f} TL"); c2.metric("Eşya", f"{it_c:,.0f} TL"); c3.metric("Ekstra", f"{ex_c:,.0f} TL")
+    
+    # Hesaplamalar
+    items_total = df[df['tur'] == 'Alisveris']['fiyat'].sum()
+    
+    extra_df = df[df['tur'] == 'Ekstra']
+    extra_total = extra_df['fiyat'].sum()
+    extra_paid = extra_df['odenen'].sum()
+    extra_remain = extra_total - extra_paid
+    
+    total_projected = items_total + extra_total
+    
+    c1.metric("GENEL TOPLAM (Planlanan)", f"{total_projected:,.0f} TL")
+    c2.metric("Eşyalar Toplamı", f"{items_total:,.0f} TL")
+    c3.metric("Hizmetler (Kalan Ödeme)", f"{extra_remain:,.0f} TL", f"-{extra_paid:,.0f} TL Ödendi")
+    
+    st.divider()
     if not df[df['tur']=='Alisveris'].empty:
-        st.plotly_chart(px.pie(df[df['tur']=='Alisveris'], values='fiyat', names='kategori', hole=0.5), use_container_width=True)
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 İndir", csv, "Yuva_Listesi.csv", "text/csv", type="primary")
+        st.plotly_chart(px.pie(df[df['tur']=='Alisveris'], values='fiyat', names='kategori', title="Eşya Harcamaları", hole=0.5), use_container_width=True)
 
 # --- TAB 4: AI ---
 with tabs[3]:
