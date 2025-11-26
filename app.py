@@ -2,86 +2,61 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
 from datetime import datetime, date
 import time
 import plotly.express as px
 import re
 import random
+import json
 import urllib.parse
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 
-# --- 2. TEMA VE CSS YÖNETİMİ ---
+# --- 2. TEMA VE CSS ---
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark Luxury"
 
-# CSS: KARTLAR VE DÜZEN
 common_css = """
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@200;300;400;500;600&display=swap');
-    
     body { font-family: 'Montserrat', sans-serif; }
     h1, h2, h3, h4 { font-family: 'Playfair Display', serif !important; }
     
     /* KART YAPISI */
     .grand-card {
-        border-radius: 16px; 
-        overflow: hidden; 
-        margin-bottom: 25px; 
-        transition: transform 0.3s ease;
-        position: relative;
-        height: 100%;
-        display: flex; flex-direction: column;
+        border-radius: 12px; overflow: hidden; margin-bottom: 25px; 
+        transition: transform 0.3s ease; position: relative;
+        height: 100%; display: flex; flex-direction: column;
     }
     .grand-card:hover { transform: translateY(-5px); }
     
-    /* RESİM ALANI (SADECE FOTOĞRAF) */
+    /* RESİM ALANI (TERTEMİZ - YAZISIZ) */
     .img-area {
-        width: 100%; 
-        height: 320px; /* Biraz daha büyüttüm */
-        background-color: #fff; /* Arka plan beyaz */
+        width: 100%; height: 350px; 
+        background-color: #fff;
         display: flex; align-items: center; justify-content: center;
-        position: relative; 
+        position: relative; border-bottom: 1px solid rgba(255,255,255,0.1);
         overflow: hidden;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    
-    /* RESMİ KUTUYA TAM OTURTMA (COVER) */
     .img-area img { 
-        width: 100%; 
-        height: 100%; 
-        object-fit: cover; /* Boşluk bırakmadan doldurur */
+        width: 100%; height: 100%; 
+        object-fit: cover; /* Kutuyu doldurur */
         object-position: center;
     }
     
     /* İÇERİK ALANI */
-    .content-area { 
-        padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;
-    }
-    
+    .content-area { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
     .card-title {
-        font-family: 'Playfair Display', serif; font-size: 1.2rem; line-height: 1.3;
-        height: 3.2em; overflow: hidden; display: -webkit-box;
+        font-family: 'Playfair Display', serif; font-size: 1.1rem; line-height: 1.3;
+        height: 2.6em; overflow: hidden; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 5px;
     }
     
-    /* ADET ROZETİ (Sadece bu kalacak) */
-    .badge-qty {
-        position: absolute; bottom: 10px; right: 10px; 
-        width: 40px; height: 40px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center; 
-        font-weight: bold; font-size: 1rem;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.4); 
-        z-index: 10; 
-        border: 2px solid white;
-    }
-
-    .expense-row {
-        padding: 15px; border-radius: 10px; margin-bottom: 10px;
-        display: flex; justify-content: space-between; align-items: center;
-        border-left: 5px solid #d4af37;
-    }
+    /* BUTONLAR & DETAYLAR */
+    .info-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
     
+    /* ALINDI PERDESİ (Sadece alındığında çıkar) */
     .overlay-bought {
         position: absolute; top:0; left:0; width:100%; height:100%;
         background: rgba(0,0,0,0.7); z-index: 20;
@@ -90,31 +65,22 @@ common_css = """
     }
 """
 
-# DARK MODE CSS
 css_dark = f"""
     <style>
         {common_css}
-        .stApp {{
-            background-color: #050505;
-            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%);
-            color: #e0e0e0;
-        }}
+        .stApp {{ background-color: #050505; background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%); color: #e0e0e0; }}
         .grand-card {{ background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }}
         .grand-card:hover {{ border-color: #d4af37; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }}
         h1, h2, h3, h4, .big-font {{ color: #d4af37 !important; text-shadow: 0px 0px 20px rgba(212, 175, 55, 0.2); }}
-        .expense-row {{ background: rgba(255,255,255,0.05); }}
-        .badge-qty {{ background: #d4af37; color: #000; }}
         
         .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{
             background-color: #1a1a1a !important; color: #d4af37 !important; border: 1px solid #444 !important;
         }}
-        .stTextInput label, .stSelectbox label, .stNumberInput label, .stTextArea label {{ color: #e0e0e0 !important; }}
         .stButton>button {{ background-color: #222; color: #ccc; border: 1px solid #444; }}
         .stButton>button:hover {{ border-color: #d4af37; color: #d4af37; }}
     </style>
 """
 
-# LIGHT MODE CSS
 css_light = f"""
     <style>
         {common_css}
@@ -122,13 +88,10 @@ css_light = f"""
         .grand-card {{ background: #fff; border: 1px solid #e0e0e0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
         .grand-card:hover {{ border-color: #2c3e50; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }}
         h1, h2, h3, h4, .big-font {{ color: #2c3e50 !important; }}
-        .expense-row {{ background: #fff; border: 1px solid #eee; border-left: 5px solid #2c3e50; }}
-        .badge-qty {{ background: #2c3e50; color: #fff; }}
         
         .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{
             background-color: #ffffff !important; color: #2c3e50 !important; border: 1px solid #ccc !important;
         }}
-        .stTextInput label, .stSelectbox label, .stNumberInput label, .stTextArea label, p {{ color: #2c3e50 !important; }}
         .stButton>button {{ background-color: #fff; color: #555; border: 1px solid #ccc; }}
         .stButton>button:hover {{ border-color: #2c3e50; color: #2c3e50; }}
     </style>
@@ -138,7 +101,6 @@ if st.session_state.theme == "Dark Luxury":
     st.markdown(css_dark, unsafe_allow_html=True)
 else:
     st.markdown(css_light, unsafe_allow_html=True)
-
 
 # --- 3. HELPER FONKSİYONLAR ---
 def get_data():
@@ -159,45 +121,87 @@ def delete_data(item_id):
 def detect_category_from_title(title):
     title = title.lower()
     keywords = {
-        "Mutfak": ["tencere", "tava", "tabak", "çatal", "kaşık", "bıçak", "bardak", "kupa", "airfryer", "robot", "blender", "tost", "çay", "kahve", "fırın", "sürahi", "saklama", "kek", "kalıp", "rende", "cezve", "yemek takımı"],
+        "Mutfak": ["tencere", "tava", "tabak", "çatal", "kaşık", "bıçak", "bardak", "kupa", "airfryer", "robot", "blender", "tost", "çay", "kahve", "fırın", "sürahi", "saklama", "kek", "kalıp", "rende", "cezve", "yemek takımı", "kase"],
         "Salon": ["koltuk", "kanepe", "berjer", "masa", "sandalye", "sehpa", "ünite", "kitaplık", "konsol", "vitrin", "halı", "perde", "kırlent", "vazo", "avize", "lambader"],
         "Yatak Odası": ["nevresim", "yatak", "baza", "başlık", "yastık", "yorgan", "battaniye", "pike", "çarşaf", "gardırop", "şifonyer", "komodin", "hurç"],
-        "Elektronik": ["tv", "televizyon", "süpürge", "ütü", "kurutma", "saç", "düzleştirici", "hoparlör", "kulaklık", "şarj", "robot"],
-        "Banyo": ["havlu", "bornoz", "paspas", "sabunluk", "diş", "fırça", "sepet", "kirli", "banyo", "klozet"],
-        "Düğün": ["gelinlik", "damatlık", "ayakkabı", "kına", "davetiye", "nikah", "fotoğraf"]
+        "Elektronik": ["tv", "televizyon", "süpürge", "ütü", "kurutma", "saç", "düzleştirici", "hoparlör", "kulaklık", "şarj", "robot", "kettle", "makinesi"],
+        "Banyo": ["havlu", "bornoz", "paspas", "sabunluk", "diş", "fırça", "sepet", "kirli", "banyo", "klozet", "lif"],
+        "Düğün": ["gelinlik", "damatlık", "ayakkabı", "kına", "davetiye", "nikah", "fotoğraf", "çekim", "albüm"]
     }
     for cat, keys in keywords.items():
         if any(k in title for k in keys): return cat
     return "Diğer"
 
+# --- 🛡️ GÜÇLENDİRİLMİŞ SCRAPER (PROXY + JSON-LD) ---
 @st.cache_data(ttl=600)
 def scrape_product_info(url):
-    # Eğer link yoksa direkt dön
-    if not url or len(url) < 5:
-        return "Ürün", "https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yok", 0
-
-    # Microlink API (Resim yakalamak için en iyisi)
+    fallback_img = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png" # Şık bir ikon
+    
+    # 1. Yöntem: AllOrigins Proxy (CORS ve IP engelini aşar)
     try:
-        encoded_url = urllib.parse.quote(url)
-        api_url = f"https://api.microlink.io?url={encoded_url}&screenshot=false&meta=true"
-        
-        response = requests.get(api_url, timeout=10)
+        proxy_url = f"https://api.allorigins.win/get?url={urllib.parse.quote(url)}"
+        response = requests.get(proxy_url, timeout=10)
         data = response.json()
+        html_content = data.get("contents", "")
         
-        # Fallback (Yedek) Resim - Şık bir placeholder
-        fallback_img = "https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yuklenemedi"
-        
-        if data['status'] == 'success':
-            info = data['data']
-            title = info.get('title', 'Yeni Ürün')
-            image = info.get('image', {}).get('url', fallback_img)
-            if not image: image = fallback_img
-            return title, image, 0
-        else:
-            return "Ürün", fallback_img, 0
+        if html_content:
+            soup = BeautifulSoup(html_content, 'html.parser')
             
-    except:
-        return "Ürün", "https://placehold.co/400x300/1a1a1a/d4af37?text=Hata", 0
+            # Başlık
+            title = "Ürün"
+            og_title = soup.find("meta", property="og:title")
+            if og_title: title = og_title.get("content", "Ürün")
+            else: 
+                t_tag = soup.find("title")
+                if t_tag: title = t_tag.string
+
+            # RESİM ARAMA (Sırayla En İyisini Arar)
+            img_url = None
+            
+            # A) OpenGraph
+            og_image = soup.find("meta", property="og:image")
+            if og_image: img_url = og_image.get("content")
+            
+            # B) Trendyol Özel (Script içinden çekme)
+            if not img_url:
+                scripts = soup.find_all("script")
+                for script in scripts:
+                    if script.string and '"images":["' in script.string:
+                        # Regex ile ilk resmi yakala
+                        match = re.search(r'"images":\["(.*?)"', script.string)
+                        if match:
+                            img_url = "https://cdn.dsmcdn.com/" + match.group(1) if "cdn" not in match.group(1) else match.group(1)
+                            break
+            
+            # C) JSON-LD (Schema.org - Hepsiburada vs.)
+            if not img_url:
+                json_ld = soup.find("script", type="application/ld+json")
+                if json_ld and json_ld.string:
+                    try:
+                        data_json = json.loads(json_ld.string)
+                        # Bazen liste döner, bazen obje
+                        if isinstance(data_json, list): data_json = data_json[0]
+                        if "image" in data_json:
+                            img_list = data_json["image"]
+                            img_url = img_list[0] if isinstance(img_list, list) else img_list
+                    except: pass
+
+            # Fiyat (Meta)
+            price = 0
+            price_meta = soup.find("meta", property="product:price:amount")
+            if price_meta: price = float(price_meta.get("content", 0))
+
+            # Sonuç
+            final_img = img_url if img_url else fallback_img
+            # Trendyol bazen resmi 'tn' (thumbnail) verir, 'org' yapalım net olsun
+            final_img = final_img.replace("/mnresize/128/192/", "/").replace("mnresize", "org") 
+            
+            return title.strip(), final_img, price
+
+    except Exception as e:
+        print(f"Hata: {e}")
+    
+    return "Ürün (Manuel Giriş Yapınız)", fallback_img, 0
 
 # --- 4. GİRİŞ ---
 if "user_name" not in st.session_state: st.session_state.user_name = None
@@ -266,13 +270,13 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 
 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
-    with st.expander("➕ HIZLI EKLE (OTO-PİLOT)", expanded=True):
-        st.info("💡 Otomatik resim bulunamazsa, 'Resim Linki' kutusunu kullanabilirsiniz.")
+    with st.expander("➕ ÜRÜN EKLE (RESİM GARANTİLİ)", expanded=True):
+        st.info("💡 Site linkini yapıştırın. Resim gelmezse, resmin üzerine sağ tıklayıp 'Resim Adresini Kopyala' diyerek 2. kutuya yapıştırın.")
         
         with st.form("add_item"):
-            c1, c2 = st.columns([3, 1])
-            url = c1.text_input("Ürün Linki")
-            img_manual = c2.text_input("Resim Linki (Opsiyonel)")
+            c1, c2 = st.columns([1, 1])
+            url = c1.text_input("1. Ürün Linki")
+            img_manual = c2.text_input("2. Resim Linki (Opsiyonel)")
             
             c3, c4, c5, c6 = st.columns([2, 1, 1, 2])
             cat_options = ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"]
@@ -282,13 +286,13 @@ with tabs[0]:
             pri = c6.selectbox("Öncelik", ["Yüksek", "Orta", "Düşük"])
             
             if st.form_submit_button("KAYDET", use_container_width=True):
-                if url:
-                    with st.spinner("İşleniyor..."):
-                        # Scrape
-                        title, img, s_price = scrape_product_info(url)
+                if url or img_manual:
+                    with st.spinner("Analiz ediliyor..."):
+                        title, img, s_price = "Manuel Ürün", "", 0
+                        if url:
+                            title, img, s_price = scrape_product_info(url)
                         
-                        # Manuel resim varsa onu kullan
-                        if img_manual: img = img_manual
+                        if img_manual: img = img_manual # Manuel her zaman ezer
                         
                         # Fiyat
                         unit_p = s_price if s_price > 0 else manual_price
@@ -301,7 +305,7 @@ with tabs[0]:
                         new_row = pd.DataFrame([{
                             "id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"),
                             "ekleyen": st.session_state.user_name, "tur": "Alisveris",
-                            "kategori": final_cat, "baslik": title if title else "Ürün", 
+                            "kategori": final_cat, "baslik": title, 
                             "fiyat": final_total_price, "ilk_fiyat": final_total_price,
                             "url": url, "img": img, "oncelik": pri, "notlar": "", "durum": "Alınacak",
                             "adet": qty
@@ -327,46 +331,41 @@ with tabs[0]:
                 is_done = row['durum'] == "Alındı"
                 card_id = row['id']
                 
+                # Overlay
                 overlay_html = ""
                 if is_done:
                     overlay_html = '<div class="overlay-bought"><span style="color:#2ecc71; font-size:2rem; font-weight:bold; border:3px solid #2ecc71; padding:10px 20px; border-radius:10px; background:rgba(0,0,0,0.8);">✅ ALINDI</span></div>'
                 
                 curr = float(row['fiyat'])
-                first = float(row['ilk_fiyat'])
                 piece_count = int(row['adet']) if row['adet'] else 1
                 
-                qty_badge_html = ""
-                if piece_count > 1: qty_badge_html = f'<div class="badge-qty">x{piece_count}</div>'
-                
-                trend_html = ""
-                if first > 0 and (curr < first):
-                    trend_html = f"<span style='color:#2ecc71; font-weight:bold; margin-left:10px;'>🔻 İNDİRİMDE!</span>"
-                
-                # RESMİ GÖSTERİRKEN HATA OLURSA YEDEK GÖSTER
+                # Kart Görünümü
                 st.markdown(f"""
                 <div class="grand-card">
                     {overlay_html}
                     <div class="img-area">
-                        <img src="{row['img']}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yuklenemedi';">
-                        {qty_badge_html}
+                        <img src="{row['img']}" onerror="this.onerror=null;this.src='https://cdn-icons-png.flaticon.com/512/3081/3081840.png';">
                     </div>
                     <div class="content-area">
-                        <div style="display:flex; justify-content:space-between; color:#888; font-size:0.8rem; margin-bottom:5px;">
+                        <div class="info-row">
                             <span>{str(row['kategori']).upper()}</span>
                             <span>{row['ekleyen']}</span>
                         </div>
                         <div class="card-title">{row['baslik']}</div>
-                        <div style="margin-top:15px; font-size:1.4rem; font-weight:bold;">
-                            {curr:,.0f} TL {trend_html}
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
+                            <div style="font-size:1.4rem; font-weight:bold; color:#d4af37;">{curr:,.0f} TL</div>
+                            <div style="font-size:0.9rem; background:#333; padding:5px 10px; border-radius:10px; color:#fff;">x{piece_count} Adet</div>
                         </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # ALT BUTONLAR
                 with st.expander("🖼️ Resmi / Bilgileri Düzenle"):
                      with st.form(f"edit_{card_id}"):
-                         e_img = st.text_input("Resim Linki", value=row['img'])
-                         e_prc = st.number_input("Fiyat Güncelle", value=float(row['fiyat']))
+                         e_img = st.text_input("Resim Linki (Doğrusunu Yapıştır)", value=row['img'])
+                         e_prc = st.number_input("Fiyat", value=float(row['fiyat']))
                          if st.form_submit_button("Güncelle"):
                              idx_orig = df[df['id'] == card_id].index[0]
                              df.at[idx_orig, 'img'] = e_img
