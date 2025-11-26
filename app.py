@@ -2,7 +2,6 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime, date
 import time
 import plotly.express as px
@@ -16,7 +15,7 @@ st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark Luxury"
 
-# CSS: ORTAK AYARLAR & FONTLAR
+# CSS: KARTLAR VE DÜZEN
 common_css = """
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@200;300;400;500;600&display=swap');
     
@@ -35,15 +34,15 @@ common_css = """
     }
     .grand-card:hover { transform: translateY(-5px); }
     
-    /* RESİM ALANI */
+    /* RESİM ALANI (SABİT) */
     .img-area {
-        width: 100%; height: 280px; 
+        width: 100%; height: 300px; 
         background-color: white;
         display: flex; align-items: center; justify-content: center;
         position: relative; border-bottom: 1px solid #333;
         overflow: hidden;
     }
-    .img-area img { max-width: 100%; max-height: 100%; object-fit: cover; }
+    .img-area img { width: 100%; height: 100%; object-fit: contain; }
     
     /* İÇERİK ALANI */
     .content-area { 
@@ -51,15 +50,11 @@ common_css = """
     }
     
     .card-title {
-        font-family: 'Playfair Display', serif; font-size: 1.2rem; line-height: 1.3;
+        font-family: 'Playfair Display', serif; font-size: 1.1rem; line-height: 1.3;
         height: 3.2em; overflow: hidden; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 5px;
     }
-    .card-note {
-        font-size: 0.85rem; color: #888; height: 1.2em; overflow: hidden;
-        white-space: nowrap; text-overflow: ellipsis; font-style: italic;
-    }
-
+    
     /* BADGE & ETİKETLER */
     .badge-corner {
         position: absolute; top: 10px; left: 10px; padding: 4px 10px; border-radius: 6px; 
@@ -85,13 +80,9 @@ common_css = """
         display: flex; align-items: center; justify-content: center;
         pointer-events: none;
     }
-    
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
 """
 
-# CSS: DARK MODE
+# DARK MODE CSS
 css_dark = f"""
     <style>
         {common_css}
@@ -115,7 +106,7 @@ css_dark = f"""
     </style>
 """
 
-# CSS: LIGHT MODE
+# LIGHT MODE CSS
 css_light = f"""
     <style>
         {common_css}
@@ -171,37 +162,34 @@ def detect_category_from_title(title):
         if any(k in title for k in keys): return cat
     return "Diğer"
 
+# --- ÖNEMLİ: YENİ SCRAPER (API KULLANAN) ---
 @st.cache_data(ttl=600)
 def scrape_product_info(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-    }
-    
-    # ŞIK YEDEK RESİM (Alışveriş Çantası İkonu)
+    """
+    Bu fonksiyon artık siteye direkt gitmez.
+    Microlink API üzerinden veriyi çeker. Bu sayede %99 engellenmez.
+    """
     fallback_img = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
     
     try:
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        # Microlink API'sine istek atıyoruz (Ücretsiz ve güçlü)
+        api_url = f"https://api.microlink.io?url={url}&screenshot=false&meta=true"
+        response = requests.get(api_url, timeout=10)
+        data = response.json()
         
-        og_title = soup.find("meta", property="og:title")
-        title = og_title["content"] if og_title else soup.title.string
-        
-        # Resim Bulma (Gelişmiş)
-        img = fallback_img
-        og_image = soup.find("meta", property="og:image")
-        if og_image:
-            img = og_image["content"]
-        else:
-            link_img = soup.find("link", rel="image_src")
-            if link_img: img = link_img['href']
+        if data['status'] == 'success':
+            info = data['data']
+            title = info.get('title', 'Yeni Ürün')
+            image = info.get('image', {}).get('url', fallback_img)
             
-        price_meta = soup.find("meta", property="product:price:amount")
-        price = float(price_meta["content"]) if price_meta else 0
-        
-        return title.strip(), img, price
-    except:
+            # Fiyatı API'den çekmek zordur, 0 döndürüp manuel girişi zorluyoruz
+            # Çünkü fiyat dinamik değişir, görsel statiktir.
+            return title, image, 0 
+        else:
+            return "Ürün", fallback_img, 0
+            
+    except Exception as e:
+        print(f"Hata: {e}")
         return "Ürün", fallback_img, 0
 
 # --- 4. GİRİŞ ---
@@ -244,12 +232,8 @@ with st.sidebar:
         st.session_state.theme = mode
         st.rerun()
     st.divider()
-    if st.button("🔄 Fiyatları Güncelle"):
-        with st.spinner("Kontrol ediliyor..."):
-            new_df = df.copy()
-            # update logic here
-            time.sleep(1)
-        st.success("Veriler Güncel")
+    if st.button("🔄 Sayfayı Yenile"):
+        st.rerun()
 
 # --- 7. ANA EKRAN ---
 TARGET_DATE = date(2026, 4, 25)
@@ -276,12 +260,12 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
     with st.expander("➕ HIZLI EKLE (OTO-PİLOT)", expanded=True):
-        st.info("💡 Otomatik resim çıkmazsa, aşağıdaki 'Resim Linki' kutusuna manuel yapıştırabilirsiniz.")
+        st.info("💡 Linki yapıştırıp KAYDET'e bas. Resim ve başlığı otomatik bulacağım.")
         
         with st.form("add_item"):
             c1, c2 = st.columns([3, 1])
             url = c1.text_input("Ürün Linki")
-            img_manual = c2.text_input("Resim Linki (Otomatik Çıkmazsa)")
+            img_manual = c2.text_input("Resim Linki (Otomatik Çıkmazsa Buraya)")
             
             c3, c4, c5, c6 = st.columns([2, 1, 1, 2])
             cat_options = ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"]
@@ -292,14 +276,14 @@ with tabs[0]:
             
             if st.form_submit_button("KAYDET", use_container_width=True):
                 if url:
-                    with st.spinner("İşleniyor..."):
-                        # 1. Scrape
+                    with st.spinner("Veriler taranıyor..."):
+                        # 1. Scrape (API ile)
                         title, img, s_price = scrape_product_info(url)
                         
-                        # Manuel resim varsa onu kullan
+                        # Manuel resim öncelikli
                         if img_manual: img = img_manual
                         
-                        # Fiyat
+                        # Fiyat Hesabı
                         unit_p = s_price if s_price > 0 else manual_price
                         final_total_price = unit_p * qty
                         
@@ -321,7 +305,7 @@ with tabs[0]:
                         time.sleep(1)
                         st.rerun()
                 else:
-                    st.warning("Link gerekli.")
+                    st.warning("Lütfen bir link yapıştırın.")
 
     # LİSTELEME
     all_cats = [c for c in df['kategori'].unique() if c]
@@ -356,7 +340,7 @@ with tabs[0]:
                 <div class="grand-card">
                     {overlay_html}
                     <div class="img-area">
-                        <img src="{row['img']}">
+                        <img src="{row['img']}" onerror="this.onerror=null;this.src='https://cdn-icons-png.flaticon.com/512/3081/3081840.png';">
                         <div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>
                         {qty_badge_html}
                     </div>
@@ -366,7 +350,6 @@ with tabs[0]:
                             <span>{row['oncelik']}</span>
                         </div>
                         <div class="card-title">{row['baslik']}</div>
-                        <div class="card-note">{row['notlar'] if row['notlar'] else ''}</div>
                         <div style="margin-top:15px; font-size:1.4rem; font-weight:bold;">
                             {curr:,.0f} TL {trend_html}
                         </div>
@@ -377,7 +360,7 @@ with tabs[0]:
                 # ALT MENÜ
                 with st.expander("🖼️ Resmi / Bilgileri Düzenle"):
                      with st.form(f"edit_{card_id}"):
-                         e_img = st.text_input("Resim Linki", value=row['img'])
+                         e_img = st.text_input("Resim Linki (Yapıştır)", value=row['img'])
                          e_prc = st.number_input("Fiyat Güncelle", value=float(row['fiyat']))
                          if st.form_submit_button("Güncelle"):
                              idx_orig = df[df['id'] == card_id].index[0]
@@ -395,7 +378,7 @@ with tabs[0]:
                         if st.button("↩️ Geri Al", key=f"ret_{card_id}", use_container_width=True):
                             df.at[df[df['id'] == card_id].index[0], 'durum'] = "Alınacak"
                             update_all_data(df); st.rerun()
-                with c_act2: st.link_button("🔗 Siteye Git", row['url'], use_container_width=True)
+                with c_act2: st.link_button("🔗 Site", row['url'], use_container_width=True)
                 with c_act3:
                     if st.button("🗑️", key=f"del_{card_id}", use_container_width=True):
                         delete_data(card_id); st.rerun()
