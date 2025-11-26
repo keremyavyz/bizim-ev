@@ -42,13 +42,26 @@ common_css = """
     .img-area img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .content-area { padding: 20px; }
     
+    /* Etiketler */
     .badge-corner {
         position: absolute; top: 15px; left: 15px;
         padding: 6px 12px; border-radius: 8px; 
         font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        z-index: 5;
     }
     
+    /* YENİ: Adet Yuvarlağı (x2 vb.) */
+    .badge-qty {
+        position: absolute; bottom: 15px; right: 15px;
+        width: 45px; height: 45px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 1.1rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 10;
+        border: 2px solid white;
+    }
+
     .expense-row {
         padding: 15px; border-radius: 10px; margin-bottom: 10px;
         display: flex; justify-content: space-between; align-items: center;
@@ -74,6 +87,8 @@ css_dark = f"""
         h1, h2, h3, h4, .big-font {{ color: #d4af37 !important; text-shadow: 0px 0px 20px rgba(212, 175, 55, 0.2); }}
         .expense-row {{ background: rgba(255,255,255,0.05); }}
         
+        .badge-qty {{ background: #d4af37; color: #000; }}
+        
         .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{
             background-color: #1a1a1a !important; color: #d4af37 !important; border: 1px solid #444 !important;
         }}
@@ -92,6 +107,8 @@ css_light = f"""
         .grand-card:hover {{ border-color: #2c3e50; box-shadow: 0 15px 30px rgba(0,0,0,0.1); }}
         h1, h2, h3, h4, .big-font {{ color: #2c3e50 !important; }}
         .expense-row {{ background: #fff; border: 1px solid #eee; border-left: 5px solid #2c3e50; }}
+        
+        .badge-qty {{ background: #2c3e50; color: #fff; }}
         
         .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{
             background-color: #ffffff !important; color: #2c3e50 !important; border: 1px solid #ccc !important;
@@ -124,10 +141,8 @@ def delete_data(item_id):
     updated_df = df[df['id'] != str(item_id)]
     conn.update(worksheet="Sayfa1", data=updated_df)
 
-# --- AKILLI KATEGORİ ALGILAMA SİSTEMİ ---
 def detect_category_from_title(title):
     title = title.lower()
-    
     keywords = {
         "Mutfak": ["tencere", "tava", "tabak", "çatal", "kaşık", "bıçak", "bardak", "kupa", "airfryer", "robot", "blender", "tost", "çay", "kahve", "fırın", "sürahi", "saklama", "kek", "kalıp", "rende", "cezve"],
         "Salon": ["koltuk", "kanepe", "berjer", "masa", "sandalye", "sehpa", "ünite", "kitaplık", "konsol", "vitrin", "halı", "perde", "kırlent", "vazo", "avize", "lambader"],
@@ -136,12 +151,9 @@ def detect_category_from_title(title):
         "Banyo": ["havlu", "bornoz", "paspas", "sabunluk", "diş", "fırça", "sepet", "kirli", "banyo", "klozet"],
         "Düğün": ["gelinlik", "damatlık", "ayakkabı", "kına", "davetiye", "nikah", "fotoğraf"]
     }
-    
     for cat, keys in keywords.items():
-        if any(k in title for k in keys):
-            return cat
-    
-    return "Diğer" # Bulamazsa
+        if any(k in title for k in keys): return cat
+    return "Diğer"
 
 @st.cache_data(ttl=600)
 def scrape_product_info(url):
@@ -178,12 +190,17 @@ if not st.session_state.user_name:
 # --- 5. DATA HAZIRLIK ---
 try: 
     df = get_data()
-    cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum']
+    # Adet kolonu ekliyoruz
+    cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet']
     for col in cols:
         if col not in df.columns: df[col] = ""
     if 'id' in df.columns: df['id'] = df['id'].astype(str)
+    
+    # Sayısal dönüşümler
     df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
     df['ilk_fiyat'] = pd.to_numeric(df['ilk_fiyat'], errors='coerce').fillna(0)
+    df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1).astype(int) # Varsayılan 1
+    
 except: 
     df = pd.DataFrame(columns=cols)
 
@@ -198,7 +215,17 @@ with st.sidebar:
         st.rerun()
     st.divider()
     if st.button("🔄 Fiyatları Güncelle"):
-        with st.spinner("Taranıyor..."): time.sleep(1)
+        with st.spinner("Güncelleniyor..."):
+            # Basit simülasyon, gerçekte scrape yapabiliriz
+            # Burada adeti hesaba katarak güncelleme yapmak lazım
+            new_df = df.copy()
+            for idx, row in new_df.iterrows():
+                if row['url'] and row['tur'] == 'Alisveris':
+                     _, _, unit_p = scrape_product_info(row['url'])
+                     qty = int(row['adet']) if row['adet'] else 1
+                     if unit_p > 0:
+                         new_df.at[idx, 'fiyat'] = unit_p * qty
+            update_all_data(new_df)
         st.success("Veriler Güncel")
 
 # --- 7. ANA EKRAN ---
@@ -226,43 +253,46 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
     with st.expander("➕ HIZLI EKLE (OTO-PİLOT)", expanded=True):
-        st.info("💡 Linki yapıştır ve KAYDET'e bas. Ürünün adını, resmini ve kategorisini (Mutfak, Salon vb.) otomatik bulacağım.")
+        st.info("💡 Adet girince fiyat otomatik çarpılır (Örn: 2 tane seçersen fiyat 2 katı olur).")
         
         with st.form("add_item"):
-            # Sadece Link ve Fiyat yeterli, gerisini AI halleder
             c1, c2 = st.columns([3, 1])
             url = c1.text_input("Link Yapıştır")
-            manual_price = c2.number_input("Fiyat (Otomatik Çekemezsem)", min_value=0.0)
+            manual_price = c2.number_input("Birim Fiyat (Tanesi)", min_value=0.0)
             
-            # Kategori seçimi artık opsiyonel, varsayılan "Otomatik"
-            c3, c4 = st.columns([2, 2])
+            c3, c4, c5 = st.columns([1, 1, 2])
             cat_options = ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"]
             cat = c3.selectbox("Kategori", cat_options)
-            pri = c4.selectbox("Öncelik", ["Yüksek", "Orta", "Düşük"])
+            
+            # YENİ: ADET GİRİŞİ
+            qty = c4.number_input("Adet", min_value=1, value=1, step=1)
+            
+            pri = c5.selectbox("Öncelik", ["Yüksek", "Orta", "Düşük"])
             
             if st.form_submit_button("KAYDET", use_container_width=True):
                 if url:
-                    with st.spinner("Link inceleniyor, kategori tahmin ediliyor..."):
-                        # 1. Bilgileri Çek
+                    with st.spinner("Hesaplanıyor..."):
                         title, img, s_price = scrape_product_info(url)
-                        final_price = s_price if s_price > 0 else manual_price
                         
-                        # 2. Kategoriyi Otomatik Bul (Eğer kullanıcı seçmediyse)
+                        # Fiyat Hesabı: (Çekilen veya Manuel) * Adet
+                        unit_p = s_price if s_price > 0 else manual_price
+                        final_total_price = unit_p * qty
+                        
                         final_cat = cat
                         if cat == "Otomatik Algıla":
                             final_cat = detect_category_from_title(title)
                         
-                        # 3. Kaydet
                         new_row = pd.DataFrame([{
                             "id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"),
                             "ekleyen": st.session_state.user_name, "tur": "Alisveris",
                             "kategori": final_cat, "baslik": title if title else "Ürün", 
-                            "fiyat": final_price, "ilk_fiyat": final_price,
-                            "url": url, "img": img, "oncelik": pri, "notlar": "", "durum": "Alınacak"
+                            "fiyat": final_total_price, "ilk_fiyat": final_total_price,
+                            "url": url, "img": img, "oncelik": pri, "notlar": "", "durum": "Alınacak",
+                            "adet": qty
                         }])
                         df = pd.concat([df, new_row], ignore_index=True)
                         update_all_data(df)
-                        st.success(f"Eklendi! Kategori: {final_cat}")
+                        st.success(f"Eklendi! {qty} adet toplam {final_total_price} TL")
                         time.sleep(1)
                         st.rerun()
                 else:
@@ -284,6 +314,13 @@ with tabs[0]:
                 
                 curr = float(row['fiyat'])
                 first = float(row['ilk_fiyat'])
+                piece_count = int(row['adet']) if row['adet'] else 1
+                
+                # Çoklu Alım Rozeti (Sadece 1'den büyükse göster)
+                qty_badge_html = ""
+                if piece_count > 1:
+                    qty_badge_html = f'<div class="badge-qty">x{piece_count}</div>'
+                
                 trend_html = ""
                 if first > 0 and (curr < first):
                     trend_html = f"<span style='color:#2ecc71; font-weight:bold; margin-left:10px;'>🔻 İNDİRİMDE!</span>"
@@ -293,6 +330,7 @@ with tabs[0]:
                     <div class="img-area">
                         <img src="{row['img']}">
                         <div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>
+                        {qty_badge_html}
                         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#2ecc71; font-size:2rem; font-weight:bold; text-shadow:0 0 10px black;">{status_badge}</div>
                     </div>
                     <div class="content-area">
@@ -341,7 +379,7 @@ with tabs[1]:
                         "id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"),
                         "ekleyen": st.session_state.user_name, "tur": "Ekstra",
                         "baslik": exp_name, "fiyat": exp_cost, "kategori": exp_cat,
-                        "ilk_fiyat": exp_cost, "url":"", "img":"", "oncelik":"", "notlar":"", "durum":""
+                        "ilk_fiyat": exp_cost, "url":"", "img":"", "oncelik":"", "notlar":"", "durum":"", "adet": 1
                     }])
                     df = pd.concat([df, new_row], ignore_index=True)
                     update_all_data(df); st.rerun()
@@ -369,7 +407,7 @@ with tabs[1]:
                         "id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"),
                         "ekleyen": st.session_state.user_name, "tur": "ToDo",
                         "baslik": task, "durum": "Yapılacak",
-                        "kategori":"", "fiyat":0, "ilk_fiyat":0, "url":"", "img":"", "oncelik":"", "notlar":""
+                        "kategori":"", "fiyat":0, "ilk_fiyat":0, "url":"", "img":"", "oncelik":"", "notlar":"", "adet": 1
                     }])
                     df = pd.concat([df, new_row], ignore_index=True)
                     update_all_data(df); st.rerun()
@@ -421,6 +459,9 @@ with tabs[2]:
                           color_discrete_sequence=["#d4af37", "#2c3e50"], hole=0.5)
             fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="gray")
             st.plotly_chart(fig2, use_container_width=True)
+
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 İndir", csv, "Yuva_Listesi.csv", "text/csv", type="primary")
 
 # --- TAB 4: AI ASİSTAN ---
 with tabs[3]:
