@@ -41,8 +41,9 @@ common_css = """
         background-color: white;
         display: flex; align-items: center; justify-content: center;
         position: relative; border-bottom: 1px solid #333;
+        overflow: hidden;
     }
-    .img-area img { max-width: 95%; max-height: 95%; object-fit: contain; }
+    .img-area img { max-width: 100%; max-height: 100%; object-fit: cover; }
     
     /* İÇERİK ALANI */
     .content-area { 
@@ -172,39 +173,36 @@ def detect_category_from_title(title):
 
 @st.cache_data(ttl=600)
 def scrape_product_info(url):
-    # DAHA GÜÇLÜ HEADERS (Tarayıcı Taklidi)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Referer': 'https://www.google.com/'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
     }
+    
+    # ŞIK YEDEK RESİM (Alışveriş Çantası İkonu)
+    fallback_img = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
+    
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Başlık Bulma
         og_title = soup.find("meta", property="og:title")
         title = og_title["content"] if og_title else soup.title.string
         
-        # Resim Bulma (Geliştirilmiş)
-        img = "https://via.placeholder.com/400x300/111111/444444?text=Gorsel+Yok"
-        
+        # Resim Bulma (Gelişmiş)
+        img = fallback_img
         og_image = soup.find("meta", property="og:image")
         if og_image:
             img = og_image["content"]
         else:
-            # Alternatif resim kaynakları
             link_img = soup.find("link", rel="image_src")
             if link_img: img = link_img['href']
             
-        # Fiyat Bulma
         price_meta = soup.find("meta", property="product:price:amount")
         price = float(price_meta["content"]) if price_meta else 0
         
         return title.strip(), img, price
     except:
-        return "Ürün", "https://via.placeholder.com/400x300/111111/444444?text=Hata", 0
+        return "Ürün", fallback_img, 0
 
 # --- 4. GİRİŞ ---
 if "user_name" not in st.session_state: st.session_state.user_name = None
@@ -249,7 +247,7 @@ with st.sidebar:
     if st.button("🔄 Fiyatları Güncelle"):
         with st.spinner("Kontrol ediliyor..."):
             new_df = df.copy()
-            # ... update logic ...
+            # update logic here
             time.sleep(1)
         st.success("Veriler Güncel")
 
@@ -278,12 +276,12 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
     with st.expander("➕ HIZLI EKLE (OTO-PİLOT)", expanded=True):
-        st.info("💡 Otomatik resim çekilemezse, resim linkini manuel yapıştırabilirsiniz.")
+        st.info("💡 Otomatik resim çıkmazsa, aşağıdaki 'Resim Linki' kutusuna manuel yapıştırabilirsiniz.")
         
         with st.form("add_item"):
             c1, c2 = st.columns([3, 1])
             url = c1.text_input("Ürün Linki")
-            img_manual = c2.text_input("Resim Linki (Otomatik Çıkmazsa Buraya)")
+            img_manual = c2.text_input("Resim Linki (Otomatik Çıkmazsa)")
             
             c3, c4, c5, c6 = st.columns([2, 1, 1, 2])
             cat_options = ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"]
@@ -295,21 +293,19 @@ with tabs[0]:
             if st.form_submit_button("KAYDET", use_container_width=True):
                 if url:
                     with st.spinner("İşleniyor..."):
-                        # 1. Scrape Denemesi
+                        # 1. Scrape
                         title, img, s_price = scrape_product_info(url)
                         
-                        # Eğer manuel resim girildiyse onu kullan
-                        if img_manual:
-                            img = img_manual
+                        # Manuel resim varsa onu kullan
+                        if img_manual: img = img_manual
                         
-                        # Fiyat Hesabı
+                        # Fiyat
                         unit_p = s_price if s_price > 0 else manual_price
                         final_total_price = unit_p * qty
                         
-                        # Kategori Bulma
+                        # Kategori
                         final_cat = cat
-                        if cat == "Otomatik Algıla":
-                            final_cat = detect_category_from_title(title)
+                        if cat == "Otomatik Algıla": final_cat = detect_category_from_title(title)
                         
                         new_row = pd.DataFrame([{
                             "id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"),
@@ -321,11 +317,11 @@ with tabs[0]:
                         }])
                         df = pd.concat([df, new_row], ignore_index=True)
                         update_all_data(df)
-                        st.success(f"Eklendi! {qty} adet toplam {final_total_price} TL")
+                        st.success("Eklendi!")
                         time.sleep(1)
                         st.rerun()
                 else:
-                    st.warning("Lütfen bir link yapıştırın.")
+                    st.warning("Link gerekli.")
 
     # LİSTELEME
     all_cats = [c for c in df['kategori'].unique() if c]
@@ -338,10 +334,10 @@ with tabs[0]:
         for i, (idx, row) in enumerate(view_df.iterrows()):
             with cols[i % 2]:
                 is_done = row['durum'] == "Alındı"
+                card_id = row['id']
                 
-                # Alındı Overlay
+                # Overlay
                 overlay_html = ""
-                status_badge = ""
                 if is_done:
                     overlay_html = '<div class="overlay-bought"><span style="color:#2ecc71; font-size:2rem; font-weight:bold; border:3px solid #2ecc71; padding:10px 20px; border-radius:10px; background:rgba(0,0,0,0.8);">✅ ALINDI</span></div>'
                 
@@ -349,24 +345,18 @@ with tabs[0]:
                 first = float(row['ilk_fiyat'])
                 piece_count = int(row['adet']) if row['adet'] else 1
                 
-                # Adet Badge
                 qty_badge_html = ""
-                if piece_count > 1:
-                    qty_badge_html = f'<div class="badge-qty">x{piece_count}</div>'
+                if piece_count > 1: qty_badge_html = f'<div class="badge-qty">x{piece_count}</div>'
                 
-                # Trend
                 trend_html = ""
                 if first > 0 and (curr < first):
                     trend_html = f"<span style='color:#2ecc71; font-weight:bold; margin-left:10px;'>🔻 İNDİRİMDE!</span>"
-                
-                # Kart ID
-                card_id = row['id']
                 
                 st.markdown(f"""
                 <div class="grand-card">
                     {overlay_html}
                     <div class="img-area">
-                        <img src="{row['img']}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x300/111/444?text=Resim+Yok';">
+                        <img src="{row['img']}">
                         <div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>
                         {qty_badge_html}
                     </div>
@@ -384,19 +374,21 @@ with tabs[0]:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # ALT BUTONLAR
-                # Eğer resim bozuksa düzeltmek için expander
+                # ALT MENÜ
                 with st.expander("🖼️ Resmi / Bilgileri Düzenle"):
                      with st.form(f"edit_{card_id}"):
-                         new_img_link = st.text_input("Yeni Resim Linki", value=row['img'])
+                         e_img = st.text_input("Resim Linki", value=row['img'])
+                         e_prc = st.number_input("Fiyat Güncelle", value=float(row['fiyat']))
                          if st.form_submit_button("Güncelle"):
-                             df.at[df[df['id'] == card_id].index[0], 'img'] = new_img_link
+                             idx_orig = df[df['id'] == card_id].index[0]
+                             df.at[idx_orig, 'img'] = e_img
+                             df.at[idx_orig, 'fiyat'] = e_prc
                              update_all_data(df); st.rerun()
 
                 c_act1, c_act2, c_act3 = st.columns([2, 2, 1])
                 with c_act1:
                     if not is_done:
-                        if st.button("✅ Satın Aldık", key=f"buy_{card_id}", use_container_width=True):
+                        if st.button("✅ Aldık", key=f"buy_{card_id}", use_container_width=True):
                             df.at[df[df['id'] == card_id].index[0], 'durum'] = "Alındı"
                             update_all_data(df); st.rerun()
                     else:
