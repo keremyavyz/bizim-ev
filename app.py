@@ -7,6 +7,7 @@ import time
 import plotly.express as px
 import re
 import random
+import urllib.parse
 
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
@@ -24,7 +25,7 @@ common_css = """
     
     /* KART YAPISI */
     .grand-card {
-        border-radius: 12px; 
+        border-radius: 16px; 
         overflow: hidden; 
         margin-bottom: 25px; 
         transition: transform 0.3s ease;
@@ -34,15 +35,24 @@ common_css = """
     }
     .grand-card:hover { transform: translateY(-5px); }
     
-    /* RESİM ALANI (SABİT) */
+    /* RESİM ALANI (SADECE FOTOĞRAF) */
     .img-area {
-        width: 100%; height: 300px; 
-        background-color: white;
+        width: 100%; 
+        height: 320px; /* Biraz daha büyüttüm */
+        background-color: #fff; /* Arka plan beyaz */
         display: flex; align-items: center; justify-content: center;
-        position: relative; border-bottom: 1px solid #333;
+        position: relative; 
         overflow: hidden;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .img-area img { width: 100%; height: 100%; object-fit: contain; }
+    
+    /* RESMİ KUTUYA TAM OTURTMA (COVER) */
+    .img-area img { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: cover; /* Boşluk bırakmadan doldurur */
+        object-position: center;
+    }
     
     /* İÇERİK ALANI */
     .content-area { 
@@ -50,21 +60,20 @@ common_css = """
     }
     
     .card-title {
-        font-family: 'Playfair Display', serif; font-size: 1.1rem; line-height: 1.3;
+        font-family: 'Playfair Display', serif; font-size: 1.2rem; line-height: 1.3;
         height: 3.2em; overflow: hidden; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 5px;
     }
     
-    /* BADGE & ETİKETLER */
-    .badge-corner {
-        position: absolute; top: 10px; left: 10px; padding: 4px 10px; border-radius: 6px; 
-        font-size: 0.7rem; font-weight: bold; text-transform: uppercase;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 5;
-    }
+    /* ADET ROZETİ (Sadece bu kalacak) */
     .badge-qty {
-        position: absolute; bottom: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 10; border: 2px solid white;
+        position: absolute; bottom: 10px; right: 10px; 
+        width: 40px; height: 40px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; 
+        font-weight: bold; font-size: 1rem;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4); 
+        z-index: 10; 
+        border: 2px solid white;
     }
 
     .expense-row {
@@ -73,10 +82,9 @@ common_css = """
         border-left: 5px solid #d4af37;
     }
     
-    /* ALINDI PERDESİ */
     .overlay-bought {
         position: absolute; top:0; left:0; width:100%; height:100%;
-        background: rgba(0,0,0,0.6); z-index: 20;
+        background: rgba(0,0,0,0.7); z-index: 20;
         display: flex; align-items: center; justify-content: center;
         pointer-events: none;
     }
@@ -162,35 +170,34 @@ def detect_category_from_title(title):
         if any(k in title for k in keys): return cat
     return "Diğer"
 
-# --- ÖNEMLİ: YENİ SCRAPER (API KULLANAN) ---
 @st.cache_data(ttl=600)
 def scrape_product_info(url):
-    """
-    Bu fonksiyon artık siteye direkt gitmez.
-    Microlink API üzerinden veriyi çeker. Bu sayede %99 engellenmez.
-    """
-    fallback_img = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
-    
+    # Eğer link yoksa direkt dön
+    if not url or len(url) < 5:
+        return "Ürün", "https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yok", 0
+
+    # Microlink API (Resim yakalamak için en iyisi)
     try:
-        # Microlink API'sine istek atıyoruz (Ücretsiz ve güçlü)
-        api_url = f"https://api.microlink.io?url={url}&screenshot=false&meta=true"
+        encoded_url = urllib.parse.quote(url)
+        api_url = f"https://api.microlink.io?url={encoded_url}&screenshot=false&meta=true"
+        
         response = requests.get(api_url, timeout=10)
         data = response.json()
+        
+        # Fallback (Yedek) Resim - Şık bir placeholder
+        fallback_img = "https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yuklenemedi"
         
         if data['status'] == 'success':
             info = data['data']
             title = info.get('title', 'Yeni Ürün')
             image = info.get('image', {}).get('url', fallback_img)
-            
-            # Fiyatı API'den çekmek zordur, 0 döndürüp manuel girişi zorluyoruz
-            # Çünkü fiyat dinamik değişir, görsel statiktir.
-            return title, image, 0 
+            if not image: image = fallback_img
+            return title, image, 0
         else:
             return "Ürün", fallback_img, 0
             
-    except Exception as e:
-        print(f"Hata: {e}")
-        return "Ürün", fallback_img, 0
+    except:
+        return "Ürün", "https://placehold.co/400x300/1a1a1a/d4af37?text=Hata", 0
 
 # --- 4. GİRİŞ ---
 if "user_name" not in st.session_state: st.session_state.user_name = None
@@ -260,12 +267,12 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "📋 PLANLAYICI", "📊 ANALİZ", "🤖 
 # --- TAB 1: KOLEKSİYON ---
 with tabs[0]:
     with st.expander("➕ HIZLI EKLE (OTO-PİLOT)", expanded=True):
-        st.info("💡 Linki yapıştırıp KAYDET'e bas. Resim ve başlığı otomatik bulacağım.")
+        st.info("💡 Otomatik resim bulunamazsa, 'Resim Linki' kutusunu kullanabilirsiniz.")
         
         with st.form("add_item"):
             c1, c2 = st.columns([3, 1])
             url = c1.text_input("Ürün Linki")
-            img_manual = c2.text_input("Resim Linki (Otomatik Çıkmazsa Buraya)")
+            img_manual = c2.text_input("Resim Linki (Opsiyonel)")
             
             c3, c4, c5, c6 = st.columns([2, 1, 1, 2])
             cat_options = ["Otomatik Algıla", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"]
@@ -276,14 +283,14 @@ with tabs[0]:
             
             if st.form_submit_button("KAYDET", use_container_width=True):
                 if url:
-                    with st.spinner("Veriler taranıyor..."):
-                        # 1. Scrape (API ile)
+                    with st.spinner("İşleniyor..."):
+                        # Scrape
                         title, img, s_price = scrape_product_info(url)
                         
-                        # Manuel resim öncelikli
+                        # Manuel resim varsa onu kullan
                         if img_manual: img = img_manual
                         
-                        # Fiyat Hesabı
+                        # Fiyat
                         unit_p = s_price if s_price > 0 else manual_price
                         final_total_price = unit_p * qty
                         
@@ -305,7 +312,7 @@ with tabs[0]:
                         time.sleep(1)
                         st.rerun()
                 else:
-                    st.warning("Lütfen bir link yapıştırın.")
+                    st.warning("Link gerekli.")
 
     # LİSTELEME
     all_cats = [c for c in df['kategori'].unique() if c]
@@ -320,7 +327,6 @@ with tabs[0]:
                 is_done = row['durum'] == "Alındı"
                 card_id = row['id']
                 
-                # Overlay
                 overlay_html = ""
                 if is_done:
                     overlay_html = '<div class="overlay-bought"><span style="color:#2ecc71; font-size:2rem; font-weight:bold; border:3px solid #2ecc71; padding:10px 20px; border-radius:10px; background:rgba(0,0,0,0.8);">✅ ALINDI</span></div>'
@@ -336,18 +342,18 @@ with tabs[0]:
                 if first > 0 and (curr < first):
                     trend_html = f"<span style='color:#2ecc71; font-weight:bold; margin-left:10px;'>🔻 İNDİRİMDE!</span>"
                 
+                # RESMİ GÖSTERİRKEN HATA OLURSA YEDEK GÖSTER
                 st.markdown(f"""
                 <div class="grand-card">
                     {overlay_html}
                     <div class="img-area">
-                        <img src="{row['img']}" onerror="this.onerror=null;this.src='https://cdn-icons-png.flaticon.com/512/3081/3081840.png';">
-                        <div class="badge-corner" style="background:#000; color:#fff;">{row['ekleyen']}</div>
+                        <img src="{row['img']}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/1a1a1a/d4af37?text=Resim+Yuklenemedi';">
                         {qty_badge_html}
                     </div>
                     <div class="content-area">
                         <div style="display:flex; justify-content:space-between; color:#888; font-size:0.8rem; margin-bottom:5px;">
                             <span>{str(row['kategori']).upper()}</span>
-                            <span>{row['oncelik']}</span>
+                            <span>{row['ekleyen']}</span>
                         </div>
                         <div class="card-title">{row['baslik']}</div>
                         <div style="margin-top:15px; font-size:1.4rem; font-weight:bold;">
@@ -357,10 +363,9 @@ with tabs[0]:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # ALT MENÜ
                 with st.expander("🖼️ Resmi / Bilgileri Düzenle"):
                      with st.form(f"edit_{card_id}"):
-                         e_img = st.text_input("Resim Linki (Yapıştır)", value=row['img'])
+                         e_img = st.text_input("Resim Linki", value=row['img'])
                          e_prc = st.number_input("Fiyat Güncelle", value=float(row['fiyat']))
                          if st.form_submit_button("Güncelle"):
                              idx_orig = df[df['id'] == card_id].index[0]
@@ -387,7 +392,6 @@ with tabs[0]:
 # --- TAB 2: PLANLAYICI ---
 with tabs[1]:
     col_p1, col_p2 = st.columns([1, 1])
-    
     with col_p1:
         st.subheader("💸 Ekstra Giderler")
         with st.form("add_expense", clear_on_submit=True):
@@ -405,7 +409,6 @@ with tabs[1]:
                     }])
                     df = pd.concat([df, new_row], ignore_index=True)
                     update_all_data(df); st.rerun()
-        
         expenses = df[df['tur'] == 'Ekstra']
         if not expenses.empty:
             for i, (idx, row) in enumerate(expenses.iterrows()):
@@ -433,7 +436,6 @@ with tabs[1]:
                     }])
                     df = pd.concat([df, new_row], ignore_index=True)
                     update_all_data(df); st.rerun()
-        
         todos = df[df['tur'] == 'ToDo']
         if not todos.empty:
             for i, (idx, row) in enumerate(todos.iloc[::-1].iterrows()):
@@ -459,29 +461,24 @@ with tabs[2]:
     items_cost = df[df['tur'] == 'Alisveris']['fiyat'].sum()
     extra_cost = df[df['tur'] == 'Ekstra']['fiyat'].sum()
     total_cost = items_cost + extra_cost
-    
     c1.metric("TOPLAM BÜTÇE", f"{total_cost:,.0f} TL")
     c2.metric("Eşyalar", f"{items_cost:,.0f} TL")
     c3.metric("Ekstra Giderler", f"{extra_cost:,.0f} TL")
-    
     st.divider()
     col_chart1, col_chart2 = st.columns(2)
     with col_chart1:
         st.subheader("Kategori Bazlı (Eşyalar)")
         if not df[df['tur']=='Alisveris'].empty:
-            fig = px.pie(df[df['tur']=='Alisveris'], values='fiyat', names='kategori', 
-                         color_discrete_sequence=px.colors.sequential.RdBu, hole=0.5)
+            fig = px.pie(df[df['tur']=='Alisveris'], values='fiyat', names='kategori', color_discrete_sequence=px.colors.sequential.RdBu, hole=0.5)
             fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="gray")
             st.plotly_chart(fig, use_container_width=True)
     with col_chart2:
         st.subheader("Harcama Türü")
         summary_df = pd.DataFrame({"Tip": ["Eşyalar", "Ekstra"], "Tutar": [items_cost, extra_cost]})
         if total_cost > 0:
-            fig2 = px.pie(summary_df, values='Tutar', names='Tip', 
-                          color_discrete_sequence=["#d4af37", "#2c3e50"], hole=0.5)
+            fig2 = px.pie(summary_df, values='Tutar', names='Tip', color_discrete_sequence=["#d4af37", "#2c3e50"], hole=0.5)
             fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="gray")
             st.plotly_chart(fig2, use_container_width=True)
-
     csv = df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 İndir", csv, "Yuva_Listesi.csv", "text/csv", type="primary")
 
