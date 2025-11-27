@@ -1,11 +1,4 @@
-import streamlit as st
-from streamlit_gsheets import GSheetsConnection
-import pandas as pd
-import requests
-import time
-from datetime import datetime, date
-import urllib.parse
-from io import BytesIO
+
 
 # --- 1. AYARLAR & YAPILANDIRMA ---
 st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
