@@ -32,16 +32,24 @@ def load_css():
     btn_bg = "#2c2c2e" if is_dark else "#ffffff"
     btn_txt = "#fff" if is_dark else "#000"
     
+    # EKSİK OLAN DEĞİŞKEN EKLENDİ
+    shadow = "rgba(0,0,0,0.5)" if is_dark else "rgba(0,0,0,0.1)"
+    
     # iOS Rehber Renkleri
     ios_bg = "#000000"
     ios_item_bg = "#1c1c1e"
     ios_text = "#ffffff"
     ios_border = "#38383a"
 
-    # SVG İKONLAR (Minimalist)
-    icon_trash = '''<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ff453a;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'''
-    icon_phone = '''<svg width="20" height="20" viewBox="0 0 24 24" fill="#34c759" stroke="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>'''
-    icon_check = '''<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'''
+    # SVG İKONLAR (Minimalist ve Şık)
+    # Çöp Kutusu (Kırmızı)
+    icon_trash = '''<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'''
+    
+    # Telefon (Yeşil)
+    icon_phone = '''<svg width="22" height="22" viewBox="0 0 24 24" fill="#34c759" stroke="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>'''
+    
+    # Onay Tiku (Yeşil)
+    icon_check = '''<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'''
 
     common_css = f"""
         @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600&family=Playfair+Display:wght@400;600;700&display=swap');
@@ -113,8 +121,8 @@ def load_css():
         }}
         .todo-container:hover {{ transform: scale(1.01); border-color: {accent}; }}
         
-        .todo-text {{ flex-grow: 1; font-size: 1rem; font-weight: 500; }}
-        .todo-done {{ text-decoration: line-through; color: #636366; }}
+        .todo-text {{ flex-grow: 1; font-size: 1rem; font-weight: 500; color: {text_color}; }}
+        .todo-done {{ text-decoration: line-through; color: #636366; flex-grow: 1; font-size: 1rem; }}
         
         /* --- KART TASARIMLARI --- */
         .grand-card {{
@@ -127,9 +135,12 @@ def load_css():
         .img-area {{ width: 100%; height: 200px; background: #fff; display: flex; align-items: center; justify-content: center; }}
         .img-area img {{ max-height: 90%; max-width: 90%; object-fit: contain; }}
         
+        .content-area {{ padding: 15px; color: {text_color}; }}
+        
         .expense-card {{
             background: {card_bg}; border: 1px solid {card_border};
             border-left: 4px solid {accent}; border-radius: 12px; padding: 15px; margin-bottom: 10px;
+            color: {text_color};
         }}
         
         /* Inputlar ve Butonlar */
@@ -144,7 +155,7 @@ def load_css():
         
         /* Hero */
         .hero-days {{ font-size: 4rem; font-weight: 700; color: {accent}; font-family: 'Playfair Display', serif; text-align: center; }}
-        .hero-sub {{ text-align: center; font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; }}
+        .hero-sub {{ text-align: center; font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; color: {text_color}; }}
     """
     st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
     return icon_trash, icon_phone, icon_check
@@ -285,14 +296,24 @@ with tabs[2]:
     todos = filtered_df[filtered_df['tur'] == 'ToDo'].sort_values('id', ascending=False)
     for i, r in todos.iterrows():
         done = r['durum'] == "Yapıldı"
-        # Custom HTML Card
         cls = "todo-done" if done else "todo-text"
-        col1, col2 = st.columns([10, 1])
-        with col1:
-            if st.button(f"{'✅' if done else '⬜'} {r['baslik']}", key=f"t{r['id']}", use_container_width=True):
+        # HTML + SVG Çöp Kutusu
+        trash_html = f"""<div style="cursor:pointer; display:flex; align-items:center; justify-content:center;">{icon_trash}</div>"""
+        
+        st.markdown(f"""
+        <div class="todo-container">
+            <div style="font-size:1.2rem; cursor:pointer;">{'✅' if done else '⬜'}</div>
+            <div class="{cls}">{r['baslik']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Butonlar (Gizli ama işlevsel)
+        c_act1, c_act2 = st.columns([1, 15])
+        with c_act1:
+            if st.button("Değiştir", key=f"t{r['id']}"): 
                 df.at[i, 'durum'] = "Yapılacak" if done else "Yapıldı"; save_data(df); st.rerun()
-        with col2:
-            if st.button("🗑️", key=f"td{r['id']}"): df = df.drop(i); save_data(df); st.rerun()
+        with c_act2:
+            if st.button("Sil", key=f"del_t{r['id']}"): df = df.drop(i); save_data(df); st.rerun()
 
 # TAB 4: REHBER (IPHONE STİLİ)
 with tabs[3]:
@@ -306,7 +327,6 @@ with tabs[3]:
     
     with c2:
         contacts = filtered_df[filtered_df['tur'] == 'Usta']
-        # IPHONE ÇERÇEVESİ BAŞLANGIÇ
         html_list = ""
         for i, r in contacts.iterrows():
             tel = r['notlar']
@@ -332,8 +352,6 @@ with tabs[3]:
         </div>
         """, unsafe_allow_html=True)
         
-        # Silme işlemi için Streamlit butonları mecburen dışarıda veya ayrı bir yerde olmalı
-        # Çünkü HTML içinden Python fonksiyonu çağıramayız.
         with st.expander("🗑️ Kişi Sil"):
             for i, r in contacts.iterrows():
                 c_del1, c_del2 = st.columns([3, 1])
@@ -343,7 +361,6 @@ with tabs[3]:
 
 # TAB 5: ANALİZ
 with tabs[4]:
-    # Basit pasta grafik
     items = df[df['tur']=='Alisveris']
     if not items.empty:
         fig = px.pie(items, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
