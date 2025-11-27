@@ -6,6 +6,7 @@ import time
 from datetime import datetime, date
 import urllib.parse
 from io import BytesIO
+import plotly.express as px
 
 # --- 1. AYARLAR & YAPILANDIRMA ---
 st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
@@ -38,7 +39,7 @@ def load_css():
     ios_text = "#ffffff"
     ios_border = "#38383a"
 
-    # SVG İkonlar (Tek satırda tanımlandı)
+    # SVG İkonlar
     icon_trash = '''<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'''
     icon_phone = '''<svg width="22" height="22" viewBox="0 0 24 24" fill="#34c759" stroke="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>'''
     icon_check = '''<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'''
@@ -80,7 +81,7 @@ def load_css():
         .todo-text {{ flex-grow: 1; font-size: 1rem; font-weight: 500; color: {text_color}; }}
         .todo-done {{ text-decoration: line-through; color: #636366; flex-grow: 1; font-size: 1rem; }}
         
-        /* DİĞER KARTLAR */
+        /* KART TASARIMLARI */
         .grand-card {{
             background: {card_bg}; border: 1px solid {card_border};
             border-radius: 16px; overflow: hidden; margin-bottom: 20px;
@@ -253,7 +254,7 @@ with tabs[2]:
         with c2:
             if st.button("Sil", key=f"del_t{r['id']}"): df = df.drop(i); save_data(df); st.rerun()
 
-# TAB 4: REHBER (HTML HATASI DÜZELTİLDİ)
+# TAB 4: REHBER
 with tabs[3]:
     c1, c2 = st.columns([1, 1])
     with c1:
@@ -268,7 +269,6 @@ with tabs[3]:
         html_list = ""
         for i, r in contacts.iterrows():
             tel = r['notlar']
-            # HATA DÜZELTME: Tek satırda string birleştirme yapıldı
             html_list += f'<div class="ios-list-item"><div><div class="ios-name">{r["baslik"]}</div><div class="ios-sub">{r["kategori"]}</div></div><div class="ios-actions"><a href="tel:{tel}" style="text-decoration:none;">{icon_phone}</a></div></div>'
         
         st.markdown(f'<div class="iphone-frame"><div class="iphone-notch"></div><div class="ios-list-header">Kişiler</div><div style="background:#1c1c1e; border-radius:12px; overflow:hidden;">{html_list}</div></div>', unsafe_allow_html=True)
@@ -280,9 +280,17 @@ with tabs[3]:
                 if c_del2.button("Sil", key=f"del_c{r['id']}"):
                     df = df.drop(i); save_data(df); st.rerun()
 
-# TAB 5: ANALİZ (NameError DÜZELTİLDİ)
+# TAB 5: ANALİZ
 with tabs[4]:
-    analiz_items = df[df['tur']=='Alisveris']
-    if not analiz_items.empty:
-        fig = px.pie(analiz_items, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
+    # Güvenli değişken ismi kullanıyoruz
+    chart_data = df[df['tur']=='Alisveris']
+    if not chart_data.empty:
+        fig = px.pie(chart_data, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Ekstra İstatistikler
+        total_spent = chart_data[chart_data['durum']=='Alındı']['fiyat'].sum()
+        remaining = chart_data[chart_data['durum']!='Alındı']['fiyat'].sum()
+        c1, c2 = st.columns(2)
+        c1.metric("Harcanan", f"{total_spent:,.0f} TL")
+        c2.metric("Kalan", f"{remaining:,.0f} TL")
