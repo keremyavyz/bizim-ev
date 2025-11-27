@@ -31,8 +31,10 @@ def load_css():
             background: #1a1a1a; border: 1px solid #333;
         }
         .grand-card:hover { transform: translateY(-5px); border-color: #d4af37; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }
-        .img-area { width: 100%; height: 200px; background:#222; overflow:hidden; }
+        
+        .img-area { width: 100%; height: 200px; background:#222; overflow:hidden; position: relative; }
         .img-area img { width: 100%; height: 100%; object-fit: cover; }
+        
         .content-area { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
         
         /* GİDER KARTI */
@@ -51,30 +53,26 @@ def load_css():
     """
     st.markdown(f"<style>{common_css}.stApp {{ background-color: {BG_DARK}; color: #e0e0e0; }}</style>", unsafe_allow_html=True)
 
-# --- 3. VERİ YÖNETİMİ (ORİJİNAL ŞEMA) ---
+# --- 3. VERİ YÖNETİMİ ---
 def get_data():
-    # Sütunlar senin İLK kodundaki orijinal isimler. Böylece eski verilerin geri gelir.
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(ttl=0)
-        # Orijinal sütun yapısı
         cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
         for c in cols:
             if c not in df.columns: df[c] = ""
         
-        # Sayısal dönüşümler
         df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
         df['odenen'] = pd.to_numeric(df['odenen'], errors='coerce').fillna(0)
         df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1)
         return df
     except:
-        # Bağlantı yoksa boş dataframe (Local Mode)
         return pd.DataFrame(columns=['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen'])
 
 def save_data(df):
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
-        conn.update(worksheet="Sayfa1", data=df) # "Sayfa1" veya senin sheet adın neyse
+        conn.update(worksheet="Sayfa1", data=df)
         st.cache_data.clear()
     except:
         pass
@@ -122,13 +120,11 @@ with st.sidebar:
             df.to_excel(writer, index=False)
         st.download_button("İndir", output.getvalue(), f"Yuva_Yedek.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Üst Arama
 c_hero1, c_hero2 = st.columns([3,1])
 with c_hero1:
     st.markdown(f"<h2>Hoş Geldiniz.</h2>", unsafe_allow_html=True)
     search = st.text_input("🔍 Evin içinde ara...", placeholder="Ürün, Gider veya Not ara...")
 
-# FİLTRELEME
 mask = df.apply(lambda x: search.lower() in str(x).lower(), axis=1) if search else [True] * len(df)
 filtered_df = df[mask]
 
@@ -137,7 +133,6 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "💸 GİDER & KAPORA", "📝 YAPILACAKLA
 
 # === TAB 1: KOLEKSİYON (Alisveris) ===
 with tabs[0]:
-    # Ekleme Formu (Popover)
     with st.popover("➕ YENİ EŞYA EKLE", use_container_width=True):
         with st.form("add_item"):
             u_url = st.text_input("Link")
@@ -155,25 +150,27 @@ with tabs[0]:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df); st.rerun()
 
-    # Listeleme
     items = filtered_df[filtered_df['tur'] == 'Alisveris']
     cols = st.columns(3)
     for i, (idx, row) in enumerate(items.iterrows()):
         with cols[i % 3]:
             is_done = row['durum'] == "Alındı"
-            overlay = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;"><span style="font-size:3rem;">✅</span></div>' if is_done else ""
+            # HTML stringlerini tek satır veya düzgün girinti ile yazdım:
+            overlay_html = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;"><span style="font-size:3rem;">✅</span></div>' if is_done else ""
             
-            st.markdown(f"""
-            <div class="grand-card">
-                {overlay}
-                <div class="img-area"><img src="{row['img']}"></div>
-                <div class="content-area">
-                    <div style="color:#888; font-size:0.8rem;">{row['kategori']}</div>
-                    <h4 style="margin:5px 0; font-size:1rem;">{row['baslik']}</h4>
-                    <div style="font-size:1.2rem; color:#d4af37; font-weight:bold;">{float(row['fiyat']):,.0f} TL</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Kart HTML'ini oluştururken boşluklara dikkat ediyoruz:
+            card_html = f"""
+<div class="grand-card">
+    {overlay_html}
+    <div class="img-area"><img src="{row['img']}"></div>
+    <div class="content-area">
+        <div style="color:#888; font-size:0.8rem;">{row['kategori']}</div>
+        <h4 style="margin:5px 0; font-size:1rem;">{row['baslik']}</h4>
+        <div style="font-size:1.2rem; color:#d4af37; font-weight:bold;">{float(row['fiyat']):,.0f} TL</div>
+    </div>
+</div>
+"""
+            st.markdown(card_html, unsafe_allow_html=True)
             
             b1, b2 = st.columns(2)
             if b1.button("✅ ALDIK" if not is_done else "İPTAL", key=f"st_{row['id']}", use_container_width=True):
@@ -209,23 +206,24 @@ with tabs[1]:
             kalan = float(r['fiyat']) - float(r['odenen'])
             pct = float(r['odenen']) / float(r['fiyat']) if float(r['fiyat']) > 0 else 0
             
-            st.markdown(f"""
-            <div class="expense-card">
-                <div style="display:flex; justify-content:space-between; font-weight:bold;">
-                    <span>{r['baslik']}</span>
-                    <span>{float(r['fiyat']):,.0f} TL</span>
-                </div>
-                <div style="margin:5px 0; height:6px; background:#333; border-radius:3px;">
-                    <div style="width:{min(pct*100, 100)}%; height:100%; background:#d4af37; border-radius:3px;"></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px;">
-                    <span style="color:#4ade80;">Ödenen: {float(r['odenen']):,.0f} TL</span>
-                    <span style="color:#f87171;">Kalan: {kalan:,.0f} TL</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Gider Kartı HTML Düzeltmesi
+            exp_html = f"""
+<div class="expense-card">
+    <div style="display:flex; justify-content:space-between; font-weight:bold;">
+        <span>{r['baslik']}</span>
+        <span>{float(r['fiyat']):,.0f} TL</span>
+    </div>
+    <div style="margin:5px 0; height:6px; background:#333; border-radius:3px;">
+        <div style="width:{min(pct*100, 100)}%; height:100%; background:#d4af37; border-radius:3px;"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px;">
+        <span style="color:#4ade80;">Ödenen: {float(r['odenen']):,.0f} TL</span>
+        <span style="color:#f87171;">Kalan: {kalan:,.0f} TL</span>
+    </div>
+</div>
+"""
+            st.markdown(exp_html, unsafe_allow_html=True)
             
-            # Kapora Güncelleme
             with st.expander("Ödeme Güncelle / Sil"):
                 c_up1, c_up2 = st.columns([3,1])
                 new_pay = c_up1.number_input("Yeni Toplam Ödenen", value=float(r['odenen']), key=f"np_{r['id']}")
@@ -238,8 +236,6 @@ with tabs[1]:
 # === TAB 3: YAPILACAKLAR (ToDo) ===
 with tabs[2]:
     st.subheader("📝 To-Do Listesi")
-    
-    # Hızlı Ekle
     with st.form("todo_add", clear_on_submit=True):
         c_t1, c_t2 = st.columns([4, 1])
         t_txt = c_t1.text_input("Yapılacak İş", placeholder="Örn: Nakliyeciyle konuş...")
@@ -252,7 +248,6 @@ with tabs[2]:
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
             save_data(df); st.rerun()
             
-    # Liste
     todos = filtered_df[filtered_df['tur'] == 'ToDo']
     for i, r in todos.iterrows():
         chk = r['durum'] == "Yapıldı"
@@ -266,14 +261,12 @@ with tabs[2]:
         
         style = "text-decoration:line-through; color:#666;" if chk else ""
         col_text.markdown(f"<span style='{style}'>{r['baslik']}</span>", unsafe_allow_html=True)
-        
         if col_del.button("❌", key=f"del_td_{r['id']}"):
             df = df[df['id'] != r['id']]; save_data(df); st.rerun()
 
 # === TAB 4: DAVET & USTA ===
 with tabs[3]:
-    st.info("💡 Burası 'Usta Rehberi' ve 'Davetli Listesi' için. Veri tipi: `tur='Davetli'` veya `tur='Usta'`")
-    
+    st.info("💡 Burası 'Usta Rehberi' ve 'Davetli Listesi' için.")
     c_u1, c_u2 = st.columns(2)
     with c_u1:
         st.subheader("📞 Usta Ekle")
@@ -283,7 +276,6 @@ with tabs[3]:
             if st.form_submit_button("Kaydet"):
                 new_row = {"id": str(int(time.time())), "tur": "Usta", "baslik": nm, "notlar": tel, "fiyat":0, "odenen":0, "adet":1, "url":"", "img":"", "durum":"", "kategori":""}
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
-                
     with c_u2:
         st.subheader("👥 Davetli Ekle")
         with st.form("guest_add"):
@@ -294,7 +286,6 @@ with tabs[3]:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
     
     st.divider()
-    # Listeleme
     ustalar = df[df['tur'] == 'Usta']
     if not ustalar.empty:
         st.write("📋 **Ustalar:**")
@@ -302,16 +293,12 @@ with tabs[3]:
 
 # === TAB 5: ANALİZ ===
 with tabs[4]:
-    # Hesaplamalar
     alisveris = df[df['tur'] == 'Alisveris']
     ekstra = df[df['tur'] == 'Ekstra']
-    
     total_esya = alisveris['fiyat'].sum()
     paid_esya = alisveris[alisveris['durum']=='Alındı']['fiyat'].sum()
-    
     total_gider = ekstra['fiyat'].sum()
     paid_gider = ekstra['odenen'].sum()
-    
     grand_total = total_esya + total_gider
     grand_paid = paid_esya + paid_gider
     grand_debt = grand_total - grand_paid
@@ -325,7 +312,6 @@ with tabs[4]:
         fig = px.pie(alisveris, values='fiyat', names='kategori', title="Eşya Harcamaları", hole=0.4, template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
 
-# === STICKY FOOTER ===
 st.markdown(f"""
 <div class="sticky-footer">
     <div style="color:#fff;"><b>Toplam Bütçe:</b> {grand_total:,.0f} TL</div>
