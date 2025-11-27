@@ -27,27 +27,30 @@ def load_css():
         card_border = "#333"
         accent = "#d4af37" # Gold
         input_bg = "#1a1a1a"
+        menu_bg = "#262730" # Dropdown arka planı
         btn_bg = "#222"
         btn_txt = "#fff"
         shadow = "rgba(0,0,0,0.5)"
-    else: # Light Elegance (DÜZELTİLDİ)
-        bg_color = "#f4f4f4" # Hafif gri arka plan (göz yormaz)
-        text_color = "#333333" # Koyu gri yazı (okunabilirlik için)
-        card_bg = "#ffffff" # Beyaz kartlar
-        card_border = "#e0e0e0"
-        accent = "#d4af37" # Gold detaylar korunur
+    else: # Light Elegance (TAM DÜZELTİLMİŞ)
+        bg_color = "#f8f9fa" 
+        text_color = "#111111" # Simsiyah yazı (Netlik için)
+        card_bg = "#ffffff"
+        card_border = "#cccccc"
+        accent = "#d4af37" 
         input_bg = "#ffffff"
+        menu_bg = "#ffffff" # Dropdown arka planı beyaz
         btn_bg = "#ffffff"
-        btn_txt = "#333"
+        btn_txt = "#000000"
         shadow = "rgba(0,0,0,0.1)"
 
     common_css = f"""
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap');
         body {{ font-family: 'Montserrat', sans-serif; }}
         h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; color: {accent} !important; }}
-        p, div, span {{ color: {text_color}; }}
         
-        .stApp {{ background-color: {bg_color}; color: {text_color}; }}
+        /* Genel Yazı Renkleri */
+        .stApp, p, span, div, label {{ color: {text_color} !important; }}
+        .stApp {{ background-color: {bg_color}; }}
         
         /* KART TASARIMI */
         .grand-card {{
@@ -63,7 +66,7 @@ def load_css():
         /* RESİM ALANI */
         .img-area {{ 
             width: 100%; height: 220px; 
-            background: {card_bg}; /* Kart rengiyle aynı olsun */
+            background: {card_bg}; 
             overflow:hidden; position: relative; display: flex; align-items: center; justify-content: center; 
             border-bottom: 1px solid {card_border}; 
         }}
@@ -81,14 +84,45 @@ def load_css():
             box-shadow: 0 2px 5px {shadow};
         }}
         
-        /* INPUTLAR VE SEÇİM KUTULARI */
-        .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{
+        /* --- KRİTİK DÜZELTME: INPUTLAR VE DROPDOWNLAR --- */
+        
+        /* Input Kutuları (Text, Number vb.) */
+        .stTextInput input, .stNumberInput input, .stTextArea textarea {{
             background-color: {input_bg} !important; 
             color: {text_color} !important; 
             border: 1px solid {card_border} !important;
         }}
         
-        /* BUTONLAR (DÜZELTİLDİ) */
+        /* Selectbox (Açılır Menü) KUTUSU */
+        div[data-baseweb="select"] > div {{
+            background-color: {input_bg} !important;
+            color: {text_color} !important;
+            border-color: {card_border} !important;
+        }}
+        
+        /* Selectbox İÇİNDEKİ YAZILAR (Seçili olan) */
+        div[data-baseweb="select"] span {{
+            color: {text_color} !important;
+        }}
+        
+        /* AÇILIR LİSTE (POPOVER MENÜ) */
+        div[data-baseweb="popover"], div[data-baseweb="menu"] {{
+            background-color: {menu_bg} !important;
+            border: 1px solid {card_border} !important;
+        }}
+        
+        /* LİSTE SEÇENEKLERİ */
+        div[data-baseweb="option"] {{
+            color: {text_color} !important;
+        }}
+        
+        /* SEÇENEK HOVER DURUMU */
+        div[data-baseweb="option"]:hover {{
+             background-color: {accent} !important;
+             color: #fff !important;
+        }}
+
+        /* BUTONLAR */
         .stButton>button {{
             background-color: {btn_bg} !important;
             color: {btn_txt} !important;
@@ -115,8 +149,8 @@ def load_css():
         /* HERO SAYACI */
         .hero-counter {{ text-align: center; padding: 40px 20px; margin-bottom: 20px; }}
         .hero-days {{ font-size: 4rem; font-weight: bold; color: {accent}; line-height: 1; font-family: 'Playfair Display', serif; }}
-        .hero-label {{ font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; color: {text_color}; }}
-        .hero-date {{ font-size: 1rem; color: #888; margin-top: 10px; }}
+        .hero-label {{ font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; color: {text_color} !important; }}
+        .hero-date {{ font-size: 1rem; color: #888 !important; margin-top: 10px; }}
     """
     st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
 
@@ -396,7 +430,7 @@ with tabs[4]:
         fig = px.pie(alisveris, values='fiyat', names='kategori', title="Harcamalar", hole=0.4, template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
 
-# Footer da temaya uyumlu
+# Footer
 ft_bg = "#ffffff" if st.session_state.theme == "Light Elegance" else "#1a1a1a"
 ft_txt = "#000000" if st.session_state.theme == "Light Elegance" else "#ffffff"
 
