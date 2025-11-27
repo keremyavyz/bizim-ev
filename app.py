@@ -27,19 +27,19 @@ def load_css():
         card_border = "#333"
         accent = "#d4af37" # Gold
         input_bg = "#1a1a1a"
-        menu_bg = "#262730" # Dropdown arka planı
+        menu_bg = "#262730"
         btn_bg = "#222"
         btn_txt = "#fff"
         shadow = "rgba(0,0,0,0.5)"
-    else: # Light Elegance (TAM DÜZELTİLMİŞ)
-        bg_color = "#f8f9fa" 
-        text_color = "#111111" # Simsiyah yazı (Netlik için)
-        card_bg = "#ffffff"
-        card_border = "#cccccc"
+    else: # Light Elegance (TAMİR EDİLDİ - YÜKSEK KONTRAST)
+        bg_color = "#ffffff" 
+        text_color = "#000000" # Simsiyah yazı
+        card_bg = "#f9f9f9" # Kartlar hafif gri ayrılsın
+        card_border = "#cccccc" # Belirgin çerçeve
         accent = "#d4af37" 
         input_bg = "#ffffff"
-        menu_bg = "#ffffff" # Dropdown arka planı beyaz
-        btn_bg = "#ffffff"
+        menu_bg = "#ffffff"
+        btn_bg = "#f0f0f0"
         btn_txt = "#000000"
         shadow = "rgba(0,0,0,0.1)"
 
@@ -48,8 +48,8 @@ def load_css():
         body {{ font-family: 'Montserrat', sans-serif; }}
         h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; color: {accent} !important; }}
         
-        /* Genel Yazı Renkleri */
-        .stApp, p, span, div, label {{ color: {text_color} !important; }}
+        /* Genel Yazı Renkleri - Zorla Uygula */
+        .stApp, .stMarkdown, p, span, div, label, h1, h2, h3, h4, h5, h6 {{ color: {text_color} !important; }}
         .stApp {{ background-color: {bg_color}; }}
         
         /* KART TASARIMI */
@@ -66,7 +66,7 @@ def load_css():
         /* RESİM ALANI */
         .img-area {{ 
             width: 100%; height: 220px; 
-            background: {card_bg}; 
+            background: #fff; /* Resim alanı her zaman beyaz olsun ürün net görünsün */
             overflow:hidden; position: relative; display: flex; align-items: center; justify-content: center; 
             border-bottom: 1px solid {card_border}; 
         }}
@@ -84,44 +84,26 @@ def load_css():
             box-shadow: 0 2px 5px {shadow};
         }}
         
-        /* --- KRİTİK DÜZELTME: INPUTLAR VE DROPDOWNLAR --- */
-        
-        /* Input Kutuları (Text, Number vb.) */
-        .stTextInput input, .stNumberInput input, .stTextArea textarea {{
-            background-color: {input_bg} !important; 
-            color: {text_color} !important; 
-            border: 1px solid {card_border} !important;
+        /* INPUTLAR (ZORLA RENK ATAMA) */
+        input, textarea, select {{
+            color: {text_color} !important;
+            background-color: {input_bg} !important;
         }}
         
-        /* Selectbox (Açılır Menü) KUTUSU */
-        div[data-baseweb="select"] > div {{
+        /* Streamlit Widget Düzeltmeleri */
+        .stTextInput>div>div, .stNumberInput>div>div, .stSelectbox>div>div, .stTextArea>div>div {{
             background-color: {input_bg} !important;
-            color: {text_color} !important;
             border-color: {card_border} !important;
         }}
+        .stTextInput input, .stNumberInput input, .stTextArea textarea {{
+            color: {text_color} !important;
+        }}
         
-        /* Selectbox İÇİNDEKİ YAZILAR (Seçili olan) */
+        /* Dropdown Metinleri */
         div[data-baseweb="select"] span {{
             color: {text_color} !important;
         }}
         
-        /* AÇILIR LİSTE (POPOVER MENÜ) */
-        div[data-baseweb="popover"], div[data-baseweb="menu"] {{
-            background-color: {menu_bg} !important;
-            border: 1px solid {card_border} !important;
-        }}
-        
-        /* LİSTE SEÇENEKLERİ */
-        div[data-baseweb="option"] {{
-            color: {text_color} !important;
-        }}
-        
-        /* SEÇENEK HOVER DURUMU */
-        div[data-baseweb="option"]:hover {{
-             background-color: {accent} !important;
-             color: #fff !important;
-        }}
-
         /* BUTONLAR */
         .stButton>button {{
             background-color: {btn_bg} !important;
@@ -154,29 +136,45 @@ def load_css():
     """
     st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
 
-# --- 3. VERİ YÖNETİMİ ---
+# --- 3. VERİ YÖNETİMİ (GÜÇLENDİRİLMİŞ) ---
 def get_data():
+    # Zorunlu sütunlar listesi
+    required_cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
+    
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(ttl=0)
-        cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
-        for c in cols:
-            if c not in df.columns: df[c] = ""
         
+        # Eğer veri boş veya None gelirse boş DataFrame oluştur
+        if df is None or df.empty:
+            return pd.DataFrame(columns=required_cols)
+
+        # Eksik sütunları tamamla (ÇÖKME ÖNLEYİCİ)
+        for col in required_cols:
+            if col not in df.columns:
+                df[col] = "" # Eksik sütunu boş string ile oluştur
+        
+        # Sayısal dönüşümler (Hata vermeden)
         df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
         df['odenen'] = pd.to_numeric(df['odenen'], errors='coerce').fillna(0)
         df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1)
+        
+        # NaN değerleri temizle
+        df = df.fillna("")
+        
         return df
-    except:
-        return pd.DataFrame(columns=['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen'])
+    except Exception as e:
+        # Bağlantı hatası olursa uygulamayı çökertme, boş tablo ile aç
+        st.error(f"Veri bağlantı hatası, yerel modda açılıyor: {e}")
+        return pd.DataFrame(columns=required_cols)
 
 def save_data(df):
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         conn.update(worksheet="Sayfa1", data=df)
         st.cache_data.clear()
-    except:
-        pass
+    except Exception as e:
+        st.warning("Kaydetme sırasında bir hata oluştu, ancak işlem devam ediyor.")
 
 def scrape_metadata(url):
     fallback = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
@@ -238,8 +236,12 @@ c_hero1, c_hero2 = st.columns([3,1])
 with c_hero1:
     search = st.text_input("🔍 Evin içinde ara...", placeholder="Ürün, Gider veya Not ara...")
 
-mask = df.apply(lambda x: search.lower() in str(x).lower(), axis=1) if search else [True] * len(df)
-filtered_df = df[mask]
+# HATA ÖNLEYİCİ ARAMA MANTIĞI
+if df.empty:
+    filtered_df = df # Boşsa aynen bırak
+else:
+    mask = df.apply(lambda x: search.lower() in str(x).lower(), axis=1) if search else [True] * len(df)
+    filtered_df = df[mask]
 
 # --- 6. SEKMELER ---
 tabs = st.tabs(["🛍️ KOLEKSİYON", "💸 GİDER & KAPORA", "📝 YAPILACAKLAR", "👥 DAVET & USTA", "📊 ANALİZ"])
@@ -281,7 +283,7 @@ with tabs[0]:
     elif sort_option == "Fiyat: Düşükten Yükseğe": items = items.sort_values('fiyat', ascending=True)
 
     if items.empty:
-        st.info("Bu kriterlere uygun eşya bulunamadı.")
+        st.info("Bu kriterlere uygun eşya bulunamadı veya liste boş.")
     else:
         cols = st.columns(3)
         for i, (idx, row) in enumerate(items.iterrows()):
@@ -430,7 +432,7 @@ with tabs[4]:
         fig = px.pie(alisveris, values='fiyat', names='kategori', title="Harcamalar", hole=0.4, template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
 
-# Footer
+# Footer da temaya uyumlu
 ft_bg = "#ffffff" if st.session_state.theme == "Light Elegance" else "#1a1a1a"
 ft_txt = "#000000" if st.session_state.theme == "Light Elegance" else "#ffffff"
 
