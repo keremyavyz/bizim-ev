@@ -31,7 +31,7 @@ def load_css():
         btn_bg = "#222"
         btn_txt = "#fff"
         shadow = "rgba(0,0,0,0.5)"
-    else: # Light Elegance (TAMİR EDİLDİ - YÜKSEK KONTRAST)
+    else: # Light Elegance
         bg_color = "#ffffff" 
         text_color = "#000000" # Simsiyah yazı
         card_bg = "#f9f9f9" # Kartlar hafif gri ayrılsın
@@ -192,6 +192,11 @@ def scrape_metadata(url):
 def clean_phone(phone_val):
     s = str(phone_val).replace('.0', '').replace(',', '').replace('.', '')
     digits = ''.join(filter(str.isdigit, s))
+    
+    # Eğer 10 haneli girildiyse (532...) başına 0 ekle -> 0532...
+    if len(digits) == 10:
+        return "0" + digits
+    
     return digits
 
 # --- 4. BAŞLANGIÇ ---
@@ -256,7 +261,8 @@ with tabs[0]:
     st.write("") 
 
     with st.popover("➕ YENİ EŞYA EKLE", use_container_width=True):
-        with st.form("add_item"):
+        # clear_on_submit=True eklendi
+        with st.form("add_item", clear_on_submit=True):
             u_url = st.text_input("Link")
             u_cat = st.selectbox("Kategori", ["Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"])
             u_prc = st.number_input("Birim Fiyat", min_value=0.0)
@@ -308,7 +314,8 @@ with tabs[1]:
     c1, c2 = st.columns([1, 1])
     with c1:
         st.subheader("📌 Gider / Hizmet Ekle")
-        with st.form("add_expense"):
+        # clear_on_submit=True eklendi
+        with st.form("add_expense", clear_on_submit=True):
             e_ad = st.text_input("Gider Adı")
             e_top = st.number_input("TOPLAM Tutar", min_value=0.0)
             e_kap = st.number_input("ÖDENEN (Kapora)", min_value=0.0)
@@ -344,6 +351,7 @@ with tabs[1]:
 # === TAB 3: YAPILACAKLAR ===
 with tabs[2]:
     st.subheader("📝 To-Do Listesi")
+    # clear_on_submit=True eklendi
     with st.form("todo_add", clear_on_submit=True):
         c_t1, c_t2 = st.columns([4, 1])
         t_txt = c_t1.text_input("Yapılacak İş")
@@ -375,8 +383,10 @@ with tabs[2]:
 with tabs[3]:
     c_u1, c_u2 = st.columns(2)
     with c_u1:
-        st.subheader("📞 Usta Ekle")
-        with st.form("usta_add"):
+        # BAŞLIK GÜNCELLENDİ
+        st.subheader("📞 Rehbere Kişi / Firma Ekle")
+        # clear_on_submit=True eklendi
+        with st.form("usta_add", clear_on_submit=True):
             nm = st.text_input("Ad / Firma")
             cat = st.selectbox("Hizmet Türü", ["Nakliye", "Mobilya", "Perde", "Beyaz Eşya", "Fotoğraf", "Organizasyon", "Tadilat", "Diğer"])
             tel = st.text_input("Telefon (Başında 0 olmadan)")
@@ -387,7 +397,8 @@ with tabs[3]:
                 
     with c_u2:
         st.subheader("👥 Davetli Ekle")
-        with st.form("guest_add"):
+        # clear_on_submit=True eklendi
+        with st.form("guest_add", clear_on_submit=True):
             g_nm = st.text_input("Ad Soyad")
             g_masa = st.number_input("Masa No", min_value=1)
             if st.form_submit_button("Ekle"):
