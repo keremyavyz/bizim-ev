@@ -57,7 +57,6 @@ def get_data():
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(ttl=0)
-        # Orijinal sütun isimlerini koruyoruz
         cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
         for c in cols:
             if c not in df.columns: df[c] = ""
@@ -89,6 +88,13 @@ def scrape_metadata(url):
             return d.get('title', 'Yeni Ürün'), d.get('image', {}).get('url', fallback)
     except: pass
     return "Manuel Giriş", fallback
+
+def clean_phone(phone_val):
+    """Telefon numaralarını .0 ve gereksiz karakterlerden temizler"""
+    s = str(phone_val).replace('.0', '').replace(',', '').replace('.', '')
+    # Sadece rakamları al
+    digits = ''.join(filter(str.isdigit, s))
+    return digits
 
 # --- 4. BAŞLANGIÇ ---
 load_css()
@@ -134,6 +140,14 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "💸 GİDER & KAPORA", "📝 YAPILACAKLA
 
 # === TAB 1: KOLEKSİYON ===
 with tabs[0]:
+    # FİLTRE VE SIRALAMA ALANI
+    with st.container():
+        c_filt1, c_filt2 = st.columns(2)
+        filter_status = c_filt1.selectbox("Görünüm Filtresi", ["Tümü", "Sadece Alınacaklar", "Sadece Alınanlar"])
+        sort_option = c_filt2.selectbox("Sıralama", ["En Yeni Eklenen", "En Eski Eklenen", "Fiyat: Yüksekten Düşüğe", "Fiyat: Düşükten Yükseğe"])
+    
+    st.write("") # Boşluk
+
     with st.popover("➕ YENİ EŞYA EKLE", use_container_width=True):
         with st.form("add_item"):
             u_url = st.text_input("Link")
@@ -151,25 +165,47 @@ with tabs[0]:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df); st.rerun()
 
+    # VERİ FİLTRELEME MANTIĞI
     items = filtered_df[filtered_df['tur'] == 'Alisveris']
-    cols = st.columns(3)
-    for i, (idx, row) in enumerate(items.iterrows()):
-        with cols[i % 3]:
-            is_done = row['durum'] == "Alındı"
-            overlay = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;"><span style="font-size:3rem;">✅</span></div>' if is_done else ""
-            img_src = row['img'] if row['img'] else "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
-            
-            # Kart HTML (Tek Satır)
-            card_html = f'<div class="grand-card">{overlay}<div class="img-area"><img src="{img_src}"></div><div class="content-area"><div style="color:#888; font-size:0.8rem;">{row["kategori"]}</div><h4 style="margin:5px 0; font-size:1rem;">{row["baslik"]}</h4><div style="font-size:1.2rem; color:#d4af37; font-weight:bold;">{float(row["fiyat"]):,.0f} TL</div></div></div>'
-            st.markdown(card_html, unsafe_allow_html=True)
-            
-            b1, b2 = st.columns(2)
-            if b1.button("✅ ALDIK" if not is_done else "İPTAL", key=f"st_{row['id']}", use_container_width=True):
-                df.at[idx, 'durum'] = "Alındı" if not is_done else "Alınacak"
-                save_data(df); st.rerun()
-            if b2.button("🗑️ Sil", key=f"dl_{row['id']}", use_container_width=True):
-                st.session_state.last_undo = df.loc[[idx]]
-                df = df.drop(idx); save_data(df); st.rerun()
+    
+    # 1. Durum Filtresi
+    if filter_status == "Sadece Alınacaklar":
+        items = items[items['durum'] != 'Alındı']
+    elif filter_status == "Sadece Alınanlar":
+        items = items[items['durum'] == 'Alındı']
+        
+    # 2. Sıralama
+    if sort_option == "En Yeni Eklenen":
+        items = items.sort_values('id', ascending=False)
+    elif sort_option == "En Eski Eklenen":
+        items = items.sort_values('id', ascending=True)
+    elif sort_option == "Fiyat: Yüksekten Düşüğe":
+        items = items.sort_values('fiyat', ascending=False)
+    elif sort_option == "Fiyat: Düşükten Yükseğe":
+        items = items.sort_values('fiyat', ascending=True)
+
+    # KARTLARI GÖSTER
+    if items.empty:
+        st.info("Bu kriterlere uygun eşya bulunamadı.")
+    else:
+        cols = st.columns(3)
+        for i, (idx, row) in enumerate(items.iterrows()):
+            with cols[i % 3]:
+                is_done = row['durum'] == "Alındı"
+                overlay = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;"><span style="font-size:3rem;">✅</span></div>' if is_done else ""
+                img_src = row['img'] if row['img'] else "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
+                
+                # Kart HTML
+                card_html = f'<div class="grand-card">{overlay}<div class="img-area"><img src="{img_src}"></div><div class="content-area"><div style="color:#888; font-size:0.8rem;">{row["kategori"]}</div><h4 style="margin:5px 0; font-size:1rem;">{row["baslik"]}</h4><div style="font-size:1.2rem; color:#d4af37; font-weight:bold;">{float(row["fiyat"]):,.0f} TL</div></div></div>'
+                st.markdown(card_html, unsafe_allow_html=True)
+                
+                b1, b2 = st.columns(2)
+                if b1.button("✅ ALDIK" if not is_done else "İPTAL", key=f"st_{row['id']}", use_container_width=True):
+                    df.at[idx, 'durum'] = "Alındı" if not is_done else "Alınacak"
+                    save_data(df); st.rerun()
+                if b2.button("🗑️ Sil", key=f"dl_{row['id']}", use_container_width=True):
+                    st.session_state.last_undo = df.loc[[idx]]
+                    df = df.drop(idx); save_data(df); st.rerun()
 
 # === TAB 2: GİDER & KAPORA ===
 with tabs[1]:
@@ -197,7 +233,6 @@ with tabs[1]:
             kalan = float(r['fiyat']) - float(r['odenen'])
             pct = float(r['odenen']) / float(r['fiyat']) if float(r['fiyat']) > 0 else 0
             
-            # Gider HTML (Tek Satır)
             exp_html = f'<div class="expense-card"><div style="display:flex; justify-content:space-between; font-weight:bold;"><span>{r["baslik"]}</span><span>{float(r["fiyat"]):,.0f} TL</span></div><div style="margin:5px 0; height:6px; background:#333; border-radius:3px;"><div style="width:{min(pct*100, 100)}%; height:100%; background:#d4af37; border-radius:3px;"></div></div><div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px;"><span style="color:#4ade80;">Ödenen: {float(r["odenen"]):,.0f} TL</span><span style="color:#f87171;">Kalan: {kalan:,.0f} TL</span></div></div>'
             st.markdown(exp_html, unsafe_allow_html=True)
             
@@ -240,19 +275,19 @@ with tabs[2]:
         if col_del.button("❌", key=f"del_td_{r['id']}"):
             df = df[df['id'] != r['id']]; save_data(df); st.rerun()
 
-# === TAB 4: DAVET & USTA (GÜNCELLENDİ) ===
+# === TAB 4: DAVET & USTA ===
 with tabs[3]:
     c_u1, c_u2 = st.columns(2)
     with c_u1:
         st.subheader("📞 Usta Ekle")
         with st.form("usta_add"):
             nm = st.text_input("Ad / Firma")
-            # YENİ: Kategori Seçimi
             cat = st.selectbox("Hizmet Türü", ["Nakliye", "Mobilya", "Perde", "Beyaz Eşya", "Fotoğraf", "Organizasyon", "Tadilat", "Diğer"])
             tel = st.text_input("Telefon (Başında 0 olmadan)")
             if st.form_submit_button("Kaydet"):
-                # Kategori bilgisini de kaydediyoruz
-                new_row = {"id": str(int(time.time())), "tur": "Usta", "baslik": nm, "notlar": tel, "fiyat":0, "odenen":0, "adet":1, "url":"", "img":"", "durum":"", "kategori": cat}
+                # Numarayı temizleyerek kaydediyoruz
+                tel_cleaned = clean_phone(tel)
+                new_row = {"id": str(int(time.time())), "tur": "Usta", "baslik": nm, "notlar": tel_cleaned, "fiyat":0, "odenen":0, "adet":1, "url":"", "img":"", "durum":"", "kategori": cat}
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
                 
     with c_u2:
@@ -271,18 +306,16 @@ with tabs[3]:
         for i, u in ustalar.iterrows():
             col_info, col_call, col_del = st.columns([3, 2, 1])
             with col_info:
-                # Kategori varsa parantez içinde göster
                 kategori_str = f"({u['kategori']})" if u['kategori'] else ""
                 st.write(f"**{u['baslik']}** {kategori_str}")
             with col_call:
-                # YENİ: Tıkla Ara Özelliği
-                tel_clean = ''.join(filter(str.isdigit, str(u['notlar'])))
-                if tel_clean:
-                    st.markdown(f'<a href="tel:{tel_clean}" class="phone-link">📞 {u["notlar"]}</a>', unsafe_allow_html=True)
+                # GÖRÜNTÜLEME DÜZELTMESİ: Veriyi çekerken de temizliyoruz
+                tel_display = clean_phone(u['notlar'])
+                if tel_display:
+                    st.markdown(f'<a href="tel:{tel_display}" class="phone-link">📞 {tel_display}</a>', unsafe_allow_html=True)
                 else:
-                    st.write(u['notlar'])
+                    st.write("-")
             with col_del:
-                # YENİ: Silme Butonu
                 if st.button("Sil", key=f"del_usta_{u['id']}"):
                     df = df[df['id'] != u['id']]
                     save_data(df)
