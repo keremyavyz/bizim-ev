@@ -4,7 +4,6 @@ import pandas as pd
 import requests
 import time
 from datetime import datetime, date
-import plotly.express as px
 import urllib.parse
 from io import BytesIO
 
@@ -15,183 +14,163 @@ st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 TARGET_DATE = date(2026, 4, 25) # Düğün Tarihi
 PASSWORD = "2024"
 
-# --- 2. SESSION STATE (OTURUM) ---
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "theme" not in st.session_state:
-    st.session_state.theme = "Dark Luxury"
+# --- 2. SESSION STATE ---
+if "authenticated" not in st.session_state: st.session_state.authenticated = False
+if "theme" not in st.session_state: st.session_state.theme = "Dark Luxury"
 
-# --- 3. CSS VE ANİMASYON MOTORU ---
+# --- 3. CSS VE GÖRSEL MOTORU (SVG İKONLAR DAHİL) ---
 def load_css():
-    # Tema Renkleri
-    if st.session_state.theme == "Dark Luxury":
-        bg_color = "#000000"
-        text_color = "#f5f5f7"
-        card_bg = "#1c1c1e"
-        card_border = "#2c2c2e"
-        accent = "#d4af37" # Gold
-        input_bg = "#1c1c1e"
-        menu_bg = "#2c2c2e"
-        btn_bg = "#2c2c2e"
-        btn_txt = "#fff"
-        shadow = "rgba(0,0,0,0.5)"
-        todo_bg = "#1c1c1e"
-        todo_done_text = "#636366"
-    else: # Light Elegance
-        bg_color = "#f5f5f7"
-        text_color = "#1d1d1f"
-        card_bg = "#ffffff"
-        card_border = "#d1d1d6"
-        accent = "#d4af37" 
-        input_bg = "#ffffff"
-        menu_bg = "#ffffff"
-        btn_bg = "#ffffff"
-        btn_txt = "#1d1d1f"
-        shadow = "rgba(0,0,0,0.05)"
-        todo_bg = "#ffffff"
-        todo_done_text = "#aeaeb2"
+    # Renk Paleti (Dark Luxury / Light Elegance)
+    is_dark = st.session_state.theme == "Dark Luxury"
+    
+    bg_color = "#000000" if is_dark else "#f2f2f7"
+    text_color = "#f5f5f7" if is_dark else "#1d1d1f"
+    card_bg = "#1c1c1e" if is_dark else "#ffffff"
+    card_border = "#2c2c2e" if is_dark else "#d1d1d6"
+    accent = "#d4af37" 
+    input_bg = "#1c1c1e" if is_dark else "#ffffff"
+    btn_bg = "#2c2c2e" if is_dark else "#ffffff"
+    btn_txt = "#fff" if is_dark else "#000"
+    
+    # iOS Rehber Renkleri
+    ios_bg = "#000000"
+    ios_item_bg = "#1c1c1e"
+    ios_text = "#ffffff"
+    ios_border = "#38383a"
+
+    # SVG İKONLAR (Minimalist)
+    icon_trash = '''<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ff453a;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'''
+    icon_phone = '''<svg width="20" height="20" viewBox="0 0 24 24" fill="#34c759" stroke="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>'''
+    icon_check = '''<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'''
 
     common_css = f"""
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600&family=Playfair+Display:wght@400;600;700&display=swap');
         
-        /* --- ANİMASYONLAR --- */
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(20px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }}
+        h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; color: {accent} !important; }}
+        .stApp {{ background-color: {bg_color}; color: {text_color}; }}
+        
+        /* --- İPHONE REHBER TASARIMI --- */
+        .iphone-frame {{
+            max-width: 400px;
+            margin: 0 auto;
+            background-color: {ios_bg};
+            border-radius: 40px;
+            border: 8px solid #333;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+            min-height: 500px;
         }}
         
-        /* Tüm Ana İçerik Animasyonlu Girsin */
-        .stApp, .block-container {{
-            animation: fadeIn 0.8s ease-out forwards;
+        .iphone-notch {{
+            width: 120px;
+            height: 25px;
+            background: #000;
+            margin: -20px auto 10px auto;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            z-index: 10;
         }}
         
-        /* Kartlar sırayla gelsin (basit gecikme efekti gibi davranır) */
-        .grand-card, .expense-card, div[data-testid="stVerticalBlockBorderWrapper"] {{
-            animation: fadeIn 0.6s ease-out forwards;
-        }}
-
-        /* GENEL YAZI TİPİ */
-        html, body, [class*="css"], .stMarkdown, div, span, p, label {{
-            font-family: 'Montserrat', sans-serif !important;
-            color: {text_color};
+        .ios-list-header {{
+            color: {ios_text};
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-left: 10px;
         }}
         
-        h1, h2, h3, h4 {{ 
-            font-family: 'Playfair Display', serif !important; 
-            color: {accent} !important; 
+        .ios-list-item {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: {ios_item_bg};
+            padding: 15px;
+            border-bottom: 1px solid {ios_border};
+            color: {ios_text};
         }}
+        .ios-list-item:first-child {{ border-top-left-radius: 12px; border-top-right-radius: 12px; }}
+        .ios-list-item:last-child {{ border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }}
         
-        .stApp {{ background-color: {bg_color}; }}
+        .ios-name {{ font-weight: 600; font-size: 1rem; }}
+        .ios-sub {{ font-size: 0.8rem; color: #888; }}
         
-        /* --- GİRİŞ EKRANI (LOGIN) ÖZEL --- */
-        .login-title {{
-            font-size: 3rem;
-            text-align: center;
+        .ios-actions {{ display: flex; gap: 15px; align-items: center; }}
+        
+        /* --- PREMIUM TO-DO TASARIMI --- */
+        .todo-container {{
+            background-color: {card_bg};
+            border-radius: 12px;
+            padding: 15px;
             margin-bottom: 10px;
-            color: {accent};
+            box-shadow: 0 2px 5px {shadow};
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid {card_border};
+            transition: transform 0.2s;
         }}
-        .login-subtitle {{
-            text-align: center;
-            font-size: 1rem;
-            opacity: 0.7;
-            margin-bottom: 40px;
-        }}
+        .todo-container:hover {{ transform: scale(1.01); border-color: {accent}; }}
+        
+        .todo-text {{ flex-grow: 1; font-size: 1rem; font-weight: 500; }}
+        .todo-done {{ text-decoration: line-through; color: #636366; }}
         
         /* --- KART TASARIMLARI --- */
-        div[data-testid="stVerticalBlockBorderWrapper"] {{
-            background-color: {todo_bg};
-            border: 1px solid {card_border};
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 12px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px {shadow};
-        }}
-        
-        div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
-            border-color: {accent};
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px {shadow};
-        }}
-        
-        .stCheckbox label {{ font-size: 1.1rem !important; font-weight: 500 !important; padding-left: 10px; }}
-        
-        .task-done {{ text-decoration: line-through; color: {todo_done_text} !important; font-style: italic; transition: all 0.5s ease; }}
-        .task-active {{ color: {text_color} !important; font-weight: 500; font-size: 1.05rem; }}
-        
-        .badge-done {{
-            background-color: rgba(46, 204, 113, 0.15); color: #2ecc71; padding: 4px 10px;
-            border-radius: 12px; font-size: 0.75rem; font-weight: bold; border: 1px solid rgba(46, 204, 113, 0.3); margin-left: 10px;
-        }}
-
         .grand-card {{
-            border-radius: 16px; overflow: hidden; margin-bottom: 20px; 
-            position: relative; height: 100%; display: flex; flex-direction: column;
-            transition: transform 0.3s ease;
-            background: {card_bg} !important; border: 1px solid {card_border}; box-shadow: 0 4px 10px {shadow};
+            background: {card_bg}; border: 1px solid {card_border};
+            border-radius: 16px; overflow: hidden; margin-bottom: 20px;
+            box-shadow: 0 4px 10px {shadow}; transition: 0.3s;
         }}
+        .grand-card:hover {{ transform: translateY(-5px); border-color: {accent}; }}
         
-        .img-area {{ width: 100%; height: 220px; background: #fff; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid {card_border}; }}
-        .img-area img {{ width: 100%; height: 100%; object-fit: contain; padding: 15px; }}
-        .content-area {{ padding: 20px; color: {text_color}; }}
+        .img-area {{ width: 100%; height: 200px; background: #fff; display: flex; align-items: center; justify-content: center; }}
+        .img-area img {{ max-height: 90%; max-width: 90%; object-fit: contain; }}
         
         .expense-card {{
-            padding: 20px; border-radius: 18px; margin-bottom: 15px;
-            border-left: 5px solid {accent}; background: {card_bg} !important; 
-            border: 1px solid {card_border}; color: {text_color}; box-shadow: 0 2px 8px {shadow};
-        }}
-        
-        .stTextInput input, .stNumberInput input, .stSelectbox, .stTextArea textarea {{
-            background-color: {input_bg} !important; color: {text_color} !important;
-            border-radius: 12px !important; border: 1px solid {card_border} !important;
-        }}
-        
-        .stButton>button {{
-            border-radius: 12px !important; background-color: {btn_bg} !important;
-            color: {btn_txt} !important; border: 1px solid {card_border} !important; font-weight: 600;
-        }}
-        
-        .sticky-footer {{
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: {card_bg}; border: 1px solid {card_border};
-            padding: 10px 30px; border-radius: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            display: flex; gap: 20px; align-items: center; z-index: 9999;
+            border-left: 4px solid {accent}; border-radius: 12px; padding: 15px; margin-bottom: 10px;
         }}
         
-        .hero-counter {{ text-align: center; padding: 50px 20px; }}
-        .hero-days {{ font-size: 4.5rem; font-weight: 700; color: {accent}; font-family: 'Playfair Display', serif; line-height: 1; }}
-        .hero-label {{ letter-spacing: 3px; text-transform: uppercase; font-size: 0.9rem; opacity: 0.7; margin-bottom: 10px; }}
+        /* Inputlar ve Butonlar */
+        .stTextInput input, .stNumberInput input, .stSelectbox, .stTextArea textarea {{
+            background: {input_bg} !important; color: {text_color} !important;
+            border: 1px solid {card_border} !important; border-radius: 10px !important;
+        }}
+        .stButton>button {{
+            background: {btn_bg} !important; color: {btn_txt} !important;
+            border: 1px solid {card_border} !important; border-radius: 10px !important;
+        }}
         
-        a.phone-link {{ color: #34c759 !important; text-decoration: none; font-weight: bold; }}
+        /* Hero */
+        .hero-days {{ font-size: 4rem; font-weight: 700; color: {accent}; font-family: 'Playfair Display', serif; text-align: center; }}
+        .hero-sub {{ text-align: center; font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; }}
     """
     st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
+    return icon_trash, icon_phone, icon_check
 
 # --- 4. VERİ YÖNETİMİ ---
 def get_data():
-    required_cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
+    req = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
     conn = st.connection("gsheets", type=GSheetsConnection)
-    for attempt in range(3):
+    for _ in range(3):
         try:
             df = conn.read(ttl=0)
-            if df is None or df.empty: return pd.DataFrame(columns=required_cols)
-            for col in required_cols:
-                if col not in df.columns: df[col] = ""
+            if df is None or df.empty: return pd.DataFrame(columns=req)
+            for c in req: 
+                if c not in df.columns: df[c] = ""
             df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
             df['odenen'] = pd.to_numeric(df['odenen'], errors='coerce').fillna(0)
             df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1)
             return df.fillna("")
-        except Exception as e: time.sleep(1 + attempt)
-    return pd.DataFrame(columns=required_cols)
+        except: time.sleep(1)
+    return pd.DataFrame(columns=req)
 
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
-    for attempt in range(3):
-        try:
-            conn.update(worksheet="Sayfa1", data=df)
-            st.cache_data.clear()
-            return
-        except: time.sleep(1 + attempt)
+    for _ in range(3):
+        try: conn.update(worksheet="Sayfa1", data=df); st.cache_data.clear(); return
+        except: time.sleep(1)
 
 def scrape_metadata(url):
     fallback = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
@@ -206,234 +185,166 @@ def scrape_metadata(url):
     except: pass
     return "Manuel Giriş", fallback
 
-def clean_phone(phone_val):
-    s = str(phone_val).replace('.0', '').replace(',', '').replace('.', '')
-    digits = ''.join(filter(str.isdigit, s))
-    if len(digits) == 10: return "0" + digits
-    return digits
+def clean_phone(p):
+    s = ''.join(filter(str.isdigit, str(p)))
+    return "0" + s if len(s) == 10 else s
 
-# --- 5. UYGULAMA MANTIĞI ---
-
-# 5.1 GİRİŞ EKRANI (LOGIN)
+# --- 5. UYGULAMA ---
 if not st.session_state.authenticated:
-    load_css() # Sadece CSS yükle, sidebar yok
-    
-    # Dikey Ortalamak için boşluklar
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
-    
+    st.markdown("<br><br>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
-        # Animasyonlu Giriş Kutusu
-        with st.container(border=True):
-            st.markdown('<div class="login-title">Yuva & Co.</div>', unsafe_allow_html=True)
-            st.markdown('<div class="login-subtitle">Hayatınızın en güzel planı için giriş yapın.</div>', unsafe_allow_html=True)
-            
-            pwd_input = st.text_input("Şifre", type="password", placeholder="Giriş anahtarı...")
-            
-            if st.button("Giriş Yap", use_container_width=True):
-                if pwd_input == PASSWORD:
-                    st.session_state.authenticated = True
-                    st.rerun()
-                else:
-                    st.error("Hatalı şifre.")
-    st.stop() # Giriş yapılmadıysa aşağıyı okuma
+        st.markdown(f"<h1 style='text-align:center; color:#d4af37; font-size:3rem;'>Yuva & Co.</h1>", unsafe_allow_html=True)
+        pwd = st.text_input("Giriş Şifresi", type="password")
+        if st.button("Giriş", use_container_width=True):
+            if pwd == PASSWORD: st.session_state.authenticated = True; st.rerun()
+            else: st.error("Hatalı")
+    st.stop()
 
-# 5.2 ANA UYGULAMA (GİRİŞ YAPILDI)
-load_css()
+# Giriş Yapıldı
+icon_trash, icon_phone, icon_check = load_css()
 df = get_data()
 
-# Sidebar
 with st.sidebar:
     st.markdown("### 💍 Yuva & Co.")
-    st.caption("Planlayıcı v3.0")
     st.divider()
-    theme_choice = st.radio("Tema", ["Dark Luxury", "Light Elegance"], index=0 if st.session_state.theme == "Dark Luxury" else 1)
-    if theme_choice != st.session_state.theme:
-        st.session_state.theme = theme_choice
-        st.rerun()
+    tm = st.radio("Tema", ["Dark Luxury", "Light Elegance"], index=0 if st.session_state.theme == "Dark Luxury" else 1)
+    if tm != st.session_state.theme: st.session_state.theme = tm; st.rerun()
     st.divider()
-    if st.button("Çıkış Yap"):
-        st.session_state.authenticated = False
-        st.rerun()
-    
-    # Geri Al ve Yedek
-    if "last_undo" not in st.session_state: st.session_state.last_undo = None
-    st.divider()
-    if st.button("♻️ Geri Al", disabled=st.session_state.last_undo is None):
-        if st.session_state.last_undo is not None:
-            df = pd.concat([df, st.session_state.last_undo], ignore_index=True)
-            save_data(df); st.session_state.last_undo = None; st.rerun()
-    if st.button("📥 Yedek İndir"):
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False)
-        st.download_button("Excel Al", output.getvalue(), f"Yuva_Yedek.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    if st.button("Çıkış"): st.session_state.authenticated = False; st.rerun()
+    if st.button("📥 Yedekle"):
+        out = BytesIO()
+        with pd.ExcelWriter(out, engine='xlsxwriter') as writer: df.to_excel(writer, index=False)
+        st.download_button("İndir", out.getvalue(), "Yedek.xlsx")
 
-# HERO ALANI
-days_left = (TARGET_DATE - date.today()).days
-st.markdown(f"""<div class="hero-counter"><div class="hero-label">BÜYÜK GÜNE KALAN</div><div class="hero-days">{days_left} Gün</div><div class="hero-date">25 Nisan 2026</div></div>""", unsafe_allow_html=True)
+# Hero
+days = (TARGET_DATE - date.today()).days
+st.markdown(f"<div class='hero-sub'>BÜYÜK GÜNE KALAN</div><div class='hero-days'>{days} Gün</div>", unsafe_allow_html=True)
 
-c_hero1, c_hero2 = st.columns([3,1])
-with c_hero1: search = st.text_input("🔍 Hızlı Ara", placeholder="Ne aramıştınız?")
+# Arama
+c_src, c_null = st.columns([3,1])
+with c_src: search = st.text_input("🔍 Ara...", placeholder="Ürün, görev veya kişi...")
+filtered_df = df[df.apply(lambda x: search.lower() in str(x).lower(), axis=1)] if not df.empty else df
 
-if df.empty: filtered_df = df
-else:
-    mask = df.apply(lambda x: search.lower() in str(x).lower(), axis=1) if search else [True] * len(df)
-    filtered_df = df[mask]
-
-tabs = st.tabs(["🛍️ KOLEKSİYON", "💸 GİDERLER", "✅ YAPILACAKLAR", "👥 REHBER", "📊 DURUM"])
+tabs = st.tabs(["🛍️ KOLEKSİYON", "💸 GİDERLER", "✅ YAPILACAKLAR", "📱 REHBER", "📊 DURUM"])
 
 # TAB 1: KOLEKSİYON
 with tabs[0]:
-    with st.container():
-        c_filt1, c_filt2 = st.columns(2)
-        filter_status = c_filt1.selectbox("Filtre", ["Tümü", "Sadece Alınacaklar", "Sadece Alınanlar"])
-        sort_option = c_filt2.selectbox("Sıralama", ["En Yeni", "Fiyat Artan", "Fiyat Azalan"])
-    st.write("") 
     with st.popover("➕ ÜRÜN EKLE", use_container_width=True):
         with st.form("add_item", clear_on_submit=True):
-            u_url = st.text_input("Link")
-            u_cat = st.selectbox("Kategori", ["Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"])
-            u_prc = st.number_input("Fiyat", min_value=0.0)
-            u_qty = st.number_input("Adet", min_value=1, value=1)
+            lnk = st.text_input("Link"); cat = st.selectbox("Kategori", ["Salon", "Mutfak", "Yatak Odası", "Elektronik", "Diğer"])
+            prc = st.number_input("Fiyat"); qty = st.number_input("Adet", 1)
             if st.form_submit_button("EKLE"):
-                tit, img = scrape_metadata(u_url)
-                new_row = {"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "ekleyen": "Biz", "tur": "Alisveris", "kategori": u_cat, "baslik": tit, "fiyat": u_prc * u_qty, "ilk_fiyat": u_prc * u_qty, "url": u_url, "img": img, "durum": "Alınacak", "adet": u_qty, "odenen": 0, "notlar": ""}
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
-
+                tt, im = scrape_metadata(lnk)
+                row = {"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "tur": "Alisveris", "kategori": cat, "baslik": tt, "fiyat": prc*qty, "url": lnk, "img": im, "durum": "Alınacak", "adet": qty}
+                df = pd.concat([df, pd.DataFrame([row])], ignore_index=True); save_data(df); st.rerun()
+    
     items = filtered_df[filtered_df['tur'] == 'Alisveris']
-    if filter_status == "Sadece Alınacaklar": items = items[items['durum'] != 'Alındı']
-    elif filter_status == "Sadece Alınanlar": items = items[items['durum'] == 'Alındı']
-    if sort_option == "En Yeni": items = items.sort_values('id', ascending=False)
-    elif sort_option == "Fiyat Azalan": items = items.sort_values('fiyat', ascending=False)
-    elif sort_option == "Fiyat Artan": items = items.sort_values('fiyat', ascending=True)
-
-    if items.empty: st.info("Liste boş.")
-    else:
+    if not items.empty:
         cols = st.columns(3)
-        for i, (idx, row) in enumerate(items.iterrows()):
-            with cols[i % 3]:
-                is_done = row['durum'] == "Alındı"
-                overlay = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;"><span style="font-size:3rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">✅</span></div>' if is_done else ""
-                img_src = row['img'] if row['img'] else "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
-                st.markdown(f'<div class="grand-card">{overlay}<div class="img-area"><img src="{img_src}"></div><div class="content-area"><div style="opacity:0.7; font-size:0.8rem; text-transform:uppercase;">{row["kategori"]}</div><h4 style="margin:5px 0; font-size:1.1rem;">{row["baslik"]}</h4><div style="font-size:1.3rem; color:#d4af37; font-weight:700; margin-top:auto;">{float(row["fiyat"]):,.0f} TL</div></div></div>', unsafe_allow_html=True)
-                b1, b2 = st.columns(2)
-                if b1.button("ALDIK" if not is_done else "İPTAL", key=f"st_{row['id']}", use_container_width=True):
-                    df.at[idx, 'durum'] = "Alındı" if not is_done else "Alınacak"; save_data(df); st.rerun()
-                if b2.button("SİL", key=f"dl_{row['id']}", use_container_width=True):
-                    st.session_state.last_undo = df.loc[[idx]]; df = df.drop(idx); save_data(df); st.rerun()
+        for i, (ix, row) in enumerate(items.iterrows()):
+            with cols[i%3]:
+                bought = row['durum'] == "Alındı"
+                ovl = f'<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;">{icon_check}</div>' if bought else ""
+                st.markdown(f'<div class="grand-card">{ovl}<div class="img-area"><img src="{row["img"]}"></div><div class="content-area"><div style="opacity:0.7;font-size:0.8rem;">{row["kategori"]}</div><div style="font-weight:bold;margin:5px 0;">{row["baslik"]}</div><div style="color:#d4af37;font-size:1.2rem;">{row["fiyat"]:,.0f} TL</div></div></div>', unsafe_allow_html=True)
+                c1, c2 = st.columns(2)
+                if c1.button("ALDIK" if not bought else "İPTAL", key=f"b{row['id']}", use_container_width=True):
+                    df.at[ix, 'durum'] = "Alındı" if not bought else "Alınacak"; save_data(df); st.rerun()
+                if c2.button("SİL", key=f"d{row['id']}", use_container_width=True):
+                    df = df.drop(ix); save_data(df); st.rerun()
 
-# TAB 2: GİDER
+# TAB 2: GİDERLER
 with tabs[1]:
+    with st.popover("➕ GİDER EKLE", use_container_width=True):
+        with st.form("add_exp", clear_on_submit=True):
+            nm = st.text_input("Gider"); tp = st.number_input("Toplam"); pd_ = st.number_input("Ödenen")
+            if st.form_submit_button("KAYDET"):
+                row = {"id": str(int(time.time())), "tur": "Ekstra", "baslik": nm, "fiyat": tp, "odenen": pd_, "durum": "Bekliyor"}
+                df = pd.concat([df, pd.DataFrame([row])], ignore_index=True); save_data(df); st.rerun()
+    
+    exps = filtered_df[filtered_df['tur'] == 'Ekstra']
+    for i, r in exps.iterrows():
+        rem = r['fiyat'] - r['odenen']
+        pct = (r['odenen'] / r['fiyat'] * 100) if r['fiyat'] > 0 else 0
+        st.markdown(f'<div class="expense-card"><div style="display:flex;justify-content:space-between;font-weight:bold;"><span>{r["baslik"]}</span><span>{r["fiyat"]:,.0f} TL</span></div><div style="margin:5px 0;height:5px;background:#333;border-radius:3px;"><div style="width:{pct}%;height:100%;background:#d4af37;"></div></div><div style="display:flex;justify-content:space-between;font-size:0.8rem;"><span style="color:#4ade80">Ödenen: {r["odenen"]:,.0f} TL</span><span style="color:#ff453a">Kalan: {rem:,.0f} TL</span></div></div>', unsafe_allow_html=True)
+        with st.expander("Düzenle"):
+            c1, c2 = st.columns([3,1])
+            new_pd = c1.number_input("Ödenen", value=float(r['odenen']), key=f"p{r['id']}")
+            if c1.button("GÜNCELLE", key=f"u{r['id']}"): df.at[i, 'odenen'] = new_pd; save_data(df); st.rerun()
+            if c2.button("SİL", key=f"dx{r['id']}"): df = df.drop(i); save_data(df); st.rerun()
+
+# TAB 3: YAPILACAKLAR (PREMIUM KARTLAR)
+with tabs[2]:
+    with st.form("todo_add", clear_on_submit=True, border=False):
+        c1, c2 = st.columns([4,1])
+        tsk = c1.text_input("Yeni görev...", label_visibility="collapsed")
+        if c2.form_submit_button("EKLE", use_container_width=True):
+            row = {"id": str(int(time.time())), "tur": "ToDo", "baslik": tsk, "durum": "Yapılacak"}
+            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True); save_data(df); st.rerun()
+            
+    todos = filtered_df[filtered_df['tur'] == 'ToDo'].sort_values('id', ascending=False)
+    for i, r in todos.iterrows():
+        done = r['durum'] == "Yapıldı"
+        # Custom HTML Card
+        cls = "todo-done" if done else "todo-text"
+        col1, col2 = st.columns([10, 1])
+        with col1:
+            if st.button(f"{'✅' if done else '⬜'} {r['baslik']}", key=f"t{r['id']}", use_container_width=True):
+                df.at[i, 'durum'] = "Yapılacak" if done else "Yapıldı"; save_data(df); st.rerun()
+        with col2:
+            if st.button("🗑️", key=f"td{r['id']}"): df = df.drop(i); save_data(df); st.rerun()
+
+# TAB 4: REHBER (IPHONE STİLİ)
+with tabs[3]:
     c1, c2 = st.columns([1, 1])
     with c1:
-        st.subheader("📌 Gider Ekle")
-        with st.form("add_expense", clear_on_submit=True):
-            e_ad = st.text_input("Gider Adı")
-            e_top = st.number_input("Toplam Tutar", min_value=0.0)
-            e_kap = st.number_input("Ödenen (Kapora)", min_value=0.0)
-            e_kat = st.selectbox("Kategori", ["Düğün", "Balayı", "Ev Tadilat", "Diğer"])
-            if st.form_submit_button("KAYDET"):
-                new_row = {"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "tur": "Ekstra", "baslik": e_ad, "fiyat": e_top, "odenen": e_kap, "kategori": e_kat, "durum": "Bekliyor", "adet": 1, "url":"", "img":"", "notlar":""}
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
+        with st.form("add_contact", clear_on_submit=True):
+            nm = st.text_input("İsim"); ph = st.text_input("Tel"); cat = st.text_input("Etiket (Örn: Mobilya)")
+            if st.form_submit_button("REHBERE EKLE"):
+                row = {"id": str(int(time.time())), "tur": "Usta", "baslik": nm, "notlar": clean_phone(ph), "kategori": cat}
+                df = pd.concat([df, pd.DataFrame([row])], ignore_index=True); save_data(df); st.rerun()
+    
     with c2:
-        st.subheader("💸 Durum")
-        expenses = filtered_df[filtered_df['tur'] == 'Ekstra']
-        for i, r in expenses.iterrows():
-            kalan = float(r['fiyat']) - float(r['odenen'])
-            pct = float(r['odenen']) / float(r['fiyat']) if float(r['fiyat']) > 0 else 0
-            st.markdown(f'<div class="expense-card"><div style="display:flex; justify-content:space-between; font-weight:700; font-size:1.1rem;"><span>{r["baslik"]}</span><span>{float(r["fiyat"]):,.0f} TL</span></div><div style="margin:10px 0; height:8px; background:rgba(128,128,128,0.2); border-radius:4px;"><div style="width:{min(pct*100, 100)}%; height:100%; background:#d4af37; border-radius:4px;"></div></div><div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-top:5px;"><span style="color:#4ade80;">Ödenen: {float(r["odenen"]):,.0f} TL</span><span style="color:#ff6b6b;">Kalan: {kalan:,.0f} TL</span></div></div>', unsafe_allow_html=True)
-            with st.expander("Düzenle"):
-                c_up1, c_up2 = st.columns([3,1])
-                new_pay = c_up1.number_input("Ödenen", value=float(r['odenen']), key=f"np_{r['id']}")
-                if c_up1.button("Güncelle", key=f"up_{r['id']}"):
-                    df.at[df[df['id']==r['id']].index[0], 'odenen'] = new_pay; save_data(df); st.rerun()
-                if c_up2.button("Sil", key=f"del_ex_{r['id']}"):
-                    df = df[df['id'] != r['id']]; save_data(df); st.rerun()
-
-# TAB 3: YAPILACAKLAR
-with tabs[2]:
-    col_add, col_spc = st.columns([2, 1])
-    with col_add:
-        st.subheader("📝 Görevler")
-        with st.form("todo_add", clear_on_submit=True, border=False):
-            c_inp, c_btn = st.columns([4, 1])
-            t_txt = c_inp.text_input("Yeni görev...", label_visibility="collapsed")
-            if c_btn.form_submit_button("Ekle", use_container_width=True):
-                new_row = {"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "tur": "ToDo", "baslik": t_txt, "durum": "Yapılacak", "fiyat":0, "odenen":0, "adet":1, "url":"", "img":"", "kategori":"", "notlar":""}
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
-    
-    st.write("")
-    todos = filtered_df[filtered_df['tur'] == 'ToDo'].sort_values('id', ascending=False)
-    if todos.empty: st.info("Yapılacak bir şey yok.")
-    else:
-        for i, r in todos.iterrows():
-            is_checked = r['durum'] == "Yapıldı"
-            with st.container(border=True):
-                c_chk, c_txt, c_del = st.columns([1, 15, 1])
-                if c_chk.checkbox("", value=is_checked, key=f"chk_{r['id']}"):
-                    new_status = "Yapılacak" if is_checked else "Yapıldı"
-                    df.at[df[df['id']==r['id']].index[0], 'durum'] = new_status; save_data(df); st.rerun()
-                
-                html_content = f'<div class="task-done">{r["baslik"]} <span class="badge-done">✔ TAMAMLANDI</span></div>' if is_checked else f'<div class="task-active">{r["baslik"]}</div>'
-                c_txt.markdown(html_content, unsafe_allow_html=True)
-                
-                if c_del.button("✕", key=f"del_td_{r['id']}", help="Sil"):
-                    df = df[df['id'] != r['id']]; save_data(df); st.rerun()
-
-# TAB 4: REHBER
-with tabs[3]:
-    c_u1, c_u2 = st.columns(2)
-    with c_u1:
-        st.subheader("📞 Kişi Ekle")
-        with st.form("usta_add", clear_on_submit=True):
-            nm = st.text_input("Ad / Firma")
-            cat = st.selectbox("Hizmet", ["Nakliye", "Mobilya", "Perde", "Beyaz Eşya", "Fotoğraf", "Organizasyon", "Tadilat", "Diğer"])
-            tel = st.text_input("Tel (Başında 0 olmadan)")
-            if st.form_submit_button("Kaydet"):
-                tel_cleaned = clean_phone(tel)
-                new_row = {"id": str(int(time.time())), "tur": "Usta", "baslik": nm, "notlar": tel_cleaned, "fiyat":0, "odenen":0, "adet":1, "url":"", "img":"", "durum":"", "kategori": cat}
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
-    with c_u2:
-        st.subheader("👥 Davetli Ekle")
-        with st.form("guest_add", clear_on_submit=True):
-            g_nm = st.text_input("Ad Soyad")
-            g_masa = st.number_input("Masa No", min_value=1)
-            if st.form_submit_button("Ekle"):
-                new_row = {"id": str(int(time.time())), "tur": "Davetli", "baslik": g_nm, "adet": g_masa, "durum":"LCV Bekliyor", "fiyat":0, "odenen":0, "url":"", "img":"", "kategori":"", "notlar":""}
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True); save_data(df); st.rerun()
-    
-    st.divider()
-    ustalar = df[df['tur'] == 'Usta']
-    if not ustalar.empty:
-        st.markdown("### 📋 Rehber")
-        for i, u in ustalar.iterrows():
-            with st.container(border=True):
-                col_info, col_call, col_del = st.columns([3, 2, 1])
-                with col_info: st.write(f"**{u['baslik']}** ({u['kategori']})")
-                with col_call:
-                    tel_display = clean_phone(u['notlar'])
-                    if tel_display: st.markdown(f'<a href="tel:{tel_display}" class="phone-link">📞 {tel_display}</a>', unsafe_allow_html=True)
-                    else: st.write("-")
-                with col_del:
-                    if st.button("Sil", key=f"del_usta_{u['id']}"):
-                        df = df[df['id'] != u['id']]; save_data(df); st.rerun()
+        contacts = filtered_df[filtered_df['tur'] == 'Usta']
+        # IPHONE ÇERÇEVESİ BAŞLANGIÇ
+        html_list = ""
+        for i, r in contacts.iterrows():
+            tel = r['notlar']
+            html_list += f"""
+            <div class="ios-list-item">
+                <div>
+                    <div class="ios-name">{r['baslik']}</div>
+                    <div class="ios-sub">{r['kategori']}</div>
+                </div>
+                <div class="ios-actions">
+                    <a href="tel:{tel}" style="text-decoration:none;">{icon_phone}</a>
+                </div>
+            </div>
+            """
+        
+        st.markdown(f"""
+        <div class="iphone-frame">
+            <div class="iphone-notch"></div>
+            <div class="ios-list-header">Kişiler</div>
+            <div style="background:#1c1c1e; border-radius:12px; overflow:hidden;">
+                {html_list}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Silme işlemi için Streamlit butonları mecburen dışarıda veya ayrı bir yerde olmalı
+        # Çünkü HTML içinden Python fonksiyonu çağıramayız.
+        with st.expander("🗑️ Kişi Sil"):
+            for i, r in contacts.iterrows():
+                c_del1, c_del2 = st.columns([3, 1])
+                c_del1.write(f"{r['baslik']}")
+                if c_del2.button("Sil", key=f"del_c{r['id']}"):
+                    df = df.drop(i); save_data(df); st.rerun()
 
 # TAB 5: ANALİZ
 with tabs[4]:
-    alisveris = df[df['tur'] == 'Alisveris']
-    ekstra = df[df['tur'] == 'Ekstra']
-    grand_total = alisveris['fiyat'].sum() + ekstra['fiyat'].sum()
-    grand_paid = alisveris[alisveris['durum']=='Alındı']['fiyat'].sum() + ekstra['odenen'].sum()
-    grand_debt = grand_total - grand_paid
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Toplam Plan", f"{grand_total:,.0f} TL")
-    m2.metric("Ödenen", f"{grand_paid:,.0f} TL")
-    m3.metric("Kalan", f"{grand_debt:,.0f} TL")
-    if not alisveris.empty:
-        fig = px.pie(alisveris, values='fiyat', names='kategori', title="Harcama Dağılımı", hole=0.5, template="plotly_dark" if st.session_state.theme=="Dark Luxury" else "plotly_white")
+    # Basit pasta grafik
+    items = df[df['tur']=='Alisveris']
+    if not items.empty:
+        fig = px.pie(items, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
-
-# Footer
-text_color_footer = "#000000" if st.session_state.theme == "Light Elegance" else "#ffffff"
-st.markdown(f'<div class="sticky-footer"><div style="font-weight:bold; color:{text_color_footer}">Toplam: {grand_total:,.0f} TL</div><div style="opacity:0.7; color:{text_color_footer}">Yuva & Co.</div></div>', unsafe_allow_html=True)
