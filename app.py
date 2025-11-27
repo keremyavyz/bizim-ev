@@ -12,14 +12,14 @@ from io import BytesIO
 st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 
 # Sabitler
-TARGET_DATE = date(2026, 4, 25) # Düğün Tarihi (GÜNCELLENDİ)
+TARGET_DATE = date(2026, 4, 25) # Düğün Tarihi
 
 # --- 2. TEMA VE CSS MOTORU ---
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark Luxury"
 
 def load_css():
-    # Tema Renkleri
+    # Tema Değişkenleri
     if st.session_state.theme == "Dark Luxury":
         bg_color = "#0e0e0e"
         text_color = "#e0e0e0"
@@ -27,18 +27,25 @@ def load_css():
         card_border = "#333"
         accent = "#d4af37" # Gold
         input_bg = "#1a1a1a"
-    else: # Light Elegance
-        bg_color = "#f8f9fa"
-        text_color = "#2c3e50"
-        card_bg = "#ffffff"
+        btn_bg = "#222"
+        btn_txt = "#fff"
+        shadow = "rgba(0,0,0,0.5)"
+    else: # Light Elegance (DÜZELTİLDİ)
+        bg_color = "#f4f4f4" # Hafif gri arka plan (göz yormaz)
+        text_color = "#333333" # Koyu gri yazı (okunabilirlik için)
+        card_bg = "#ffffff" # Beyaz kartlar
         card_border = "#e0e0e0"
-        accent = "#d4af37"
+        accent = "#d4af37" # Gold detaylar korunur
         input_bg = "#ffffff"
+        btn_bg = "#ffffff"
+        btn_txt = "#333"
+        shadow = "rgba(0,0,0,0.1)"
 
     common_css = f"""
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap');
         body {{ font-family: 'Montserrat', sans-serif; }}
-        h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; }}
+        h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; color: {accent} !important; }}
+        p, div, span {{ color: {text_color}; }}
         
         .stApp {{ background-color: {bg_color}; color: {text_color}; }}
         
@@ -47,13 +54,19 @@ def load_css():
             border-radius: 12px; overflow: hidden; margin-bottom: 20px; 
             position: relative; height: 100%; display: flex; flex-direction: column;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            background: {card_bg}; border: 1px solid {card_border};
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            background: {card_bg} !important; 
+            border: 1px solid {card_border};
+            box-shadow: 0 4px 10px {shadow};
         }}
-        .grand-card:hover {{ transform: translateY(-5px); border-color: {accent}; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }}
+        .grand-card:hover {{ transform: translateY(-5px); border-color: {accent}; box-shadow: 0 10px 20px {shadow}; }}
         
-        /* RESİM ALANI (KESİLMESİN DİYE CONTAIN) */
-        .img-area {{ width: 100%; height: 220px; background: {card_bg}; overflow:hidden; position: relative; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid {card_border}; }}
+        /* RESİM ALANI */
+        .img-area {{ 
+            width: 100%; height: 220px; 
+            background: {card_bg}; /* Kart rengiyle aynı olsun */
+            overflow:hidden; position: relative; display: flex; align-items: center; justify-content: center; 
+            border-bottom: 1px solid {card_border}; 
+        }}
         .img-area img {{ width: 100%; height: 100%; object-fit: contain; padding: 10px; }}
         
         .content-area {{ padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; color: {text_color}; }}
@@ -61,20 +74,38 @@ def load_css():
         /* GİDER KARTI */
         .expense-card {{
             padding: 15px; border-radius: 12px; margin-bottom: 15px;
-            border-left: 5px solid {accent}; background: {card_bg}; border: 1px solid {card_border}; color: {text_color};
+            border-left: 5px solid {accent}; 
+            background: {card_bg} !important; 
+            border: 1px solid {card_border}; 
+            color: {text_color};
+            box-shadow: 0 2px 5px {shadow};
         }}
         
+        /* INPUTLAR VE SEÇİM KUTULARI */
+        .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {{
+            background-color: {input_bg} !important; 
+            color: {text_color} !important; 
+            border: 1px solid {card_border} !important;
+        }}
+        
+        /* BUTONLAR (DÜZELTİLDİ) */
+        .stButton>button {{
+            background-color: {btn_bg} !important;
+            color: {btn_txt} !important;
+            border: 1px solid {card_border} !important;
+            transition: all 0.3s ease;
+        }}
+        .stButton>button:hover {{
+            border-color: {accent} !important;
+            color: {accent} !important;
+        }}
+
         /* STICKY FOOTER */
         .sticky-footer {{
             position: fixed; bottom: 0; left: 0; width: 100%; z-index: 999;
             background: {card_bg}; border-top: 1px solid {card_border};
             padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-        }}
-        
-        /* INPUTLAR İÇİN RENK AYARI */
-        .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input {{
-            background-color: {input_bg} !important; color: {text_color} !important; border-color: {card_border};
+            box-shadow: 0 -2px 10px {shadow};
         }}
         
         /* TELEFON LİNKİ */
@@ -82,11 +113,9 @@ def load_css():
         a.phone-link:hover {{ text-decoration: underline; }}
         
         /* HERO SAYACI */
-        .hero-counter {{
-            text-align: center; padding: 40px 20px; margin-bottom: 20px;
-        }}
+        .hero-counter {{ text-align: center; padding: 40px 20px; margin-bottom: 20px; }}
         .hero-days {{ font-size: 4rem; font-weight: bold; color: {accent}; line-height: 1; font-family: 'Playfair Display', serif; }}
-        .hero-label {{ font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; }}
+        .hero-label {{ font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; color: {text_color}; }}
         .hero-date {{ font-size: 1rem; color: #888; margin-top: 10px; }}
     """
     st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
@@ -134,7 +163,7 @@ def clean_phone(phone_val):
     return digits
 
 # --- 4. BAŞLANGIÇ ---
-# Sidebar Tema Seçimi (CSS Yüklenmeden Önce)
+# Sidebar
 with st.sidebar:
     st.markdown("### 💍 Yuva & Co.")
     st.divider()
@@ -144,9 +173,7 @@ with st.sidebar:
         st.rerun()
     st.divider()
     
-    # Maaş sayacı kaldırıldı, yerine sadece yedekleme ve undo var.
     if "last_undo" not in st.session_state: st.session_state.last_undo = None
-    
     if st.button("♻️ Geri Al (Undo)", disabled=st.session_state.last_undo is None):
         if st.session_state.last_undo is not None:
             df = pd.concat([df, st.session_state.last_undo], ignore_index=True)
@@ -164,7 +191,6 @@ df = get_data()
 # --- 5. HERO & ORTA SAYAÇ ---
 days_left = (TARGET_DATE - date.today()).days
 
-# Ortalanmış Sayaç HTML
 st.markdown(f"""
 <div class="hero-counter">
     <div class="hero-label">BÜYÜK GÜNE KALAN</div>
@@ -173,7 +199,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Arama Çubuğu
+# Arama
 c_hero1, c_hero2 = st.columns([3,1])
 with c_hero1:
     search = st.text_input("🔍 Evin içinde ara...", placeholder="Ürün, Gider veya Not ara...")
@@ -230,7 +256,6 @@ with tabs[0]:
                 overlay = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;"><span style="font-size:3rem;">✅</span></div>' if is_done else ""
                 img_src = row['img'] if row['img'] else "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
                 
-                # HTML Renkleri (CSS class ile yönetiliyor ama gold renk inline kalabilir)
                 card_html = f'<div class="grand-card">{overlay}<div class="img-area"><img src="{img_src}"></div><div class="content-area"><div style="opacity:0.7; font-size:0.8rem;">{row["kategori"]}</div><h4 style="margin:5px 0; font-size:1rem;">{row["baslik"]}</h4><div style="font-size:1.2rem; color:#d4af37; font-weight:bold;">{float(row["fiyat"]):,.0f} TL</div></div></div>'
                 st.markdown(card_html, unsafe_allow_html=True)
                 
@@ -268,7 +293,7 @@ with tabs[1]:
             kalan = float(r['fiyat']) - float(r['odenen'])
             pct = float(r['odenen']) / float(r['fiyat']) if float(r['fiyat']) > 0 else 0
             
-            exp_html = f'<div class="expense-card"><div style="display:flex; justify-content:space-between; font-weight:bold;"><span>{r["baslik"]}</span><span>{float(r["fiyat"]):,.0f} TL</span></div><div style="margin:5px 0; height:6px; background:#333; border-radius:3px;"><div style="width:{min(pct*100, 100)}%; height:100%; background:#d4af37; border-radius:3px;"></div></div><div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px;"><span style="color:#4ade80;">Ödenen: {float(r["odenen"]):,.0f} TL</span><span style="color:#f87171;">Kalan: {kalan:,.0f} TL</span></div></div>'
+            exp_html = f'<div class="expense-card"><div style="display:flex; justify-content:space-between; font-weight:bold;"><span>{r["baslik"]}</span><span>{float(r["fiyat"]):,.0f} TL</span></div><div style="margin:5px 0; height:6px; background:#ccc; border-radius:3px;"><div style="width:{min(pct*100, 100)}%; height:100%; background:#d4af37; border-radius:3px;"></div></div><div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px;"><span style="color:#4ade80;">Ödenen: {float(r["odenen"]):,.0f} TL</span><span style="color:#f87171;">Kalan: {kalan:,.0f} TL</span></div></div>'
             st.markdown(exp_html, unsafe_allow_html=True)
             
             with st.expander("Düzenle"):
@@ -369,7 +394,6 @@ with tabs[4]:
     
     if not alisveris.empty:
         fig = px.pie(alisveris, values='fiyat', names='kategori', title="Harcamalar", hole=0.4, template="plotly_dark")
-        # Grafik renklerini temaya göre güncelleyelim mi? Basit tutmak için standart kalabilir
         st.plotly_chart(fig, use_container_width=True)
 
 # Footer da temaya uyumlu
