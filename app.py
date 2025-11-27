@@ -18,9 +18,8 @@ PASSWORD = "2024"
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "theme" not in st.session_state: st.session_state.theme = "Dark Luxury"
 
-# --- 3. CSS VE GÖRSEL MOTORU (SVG İKONLAR DAHİL) ---
+# --- 3. CSS VE GÖRSEL MOTORU ---
 def load_css():
-    # Renk Paleti (Dark Luxury / Light Elegance)
     is_dark = st.session_state.theme == "Dark Luxury"
     
     bg_color = "#000000" if is_dark else "#f2f2f7"
@@ -31,24 +30,17 @@ def load_css():
     input_bg = "#1c1c1e" if is_dark else "#ffffff"
     btn_bg = "#2c2c2e" if is_dark else "#ffffff"
     btn_txt = "#fff" if is_dark else "#000"
-    
-    # EKSİK OLAN DEĞİŞKEN EKLENDİ
     shadow = "rgba(0,0,0,0.5)" if is_dark else "rgba(0,0,0,0.1)"
     
-    # iOS Rehber Renkleri
+    # iOS Renkleri
     ios_bg = "#000000"
     ios_item_bg = "#1c1c1e"
     ios_text = "#ffffff"
     ios_border = "#38383a"
 
-    # SVG İKONLAR (Minimalist ve Şık)
-    # Çöp Kutusu (Kırmızı)
+    # SVG İkonlar (Tek satırda tanımlandı)
     icon_trash = '''<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>'''
-    
-    # Telefon (Yeşil)
     icon_phone = '''<svg width="22" height="22" viewBox="0 0 24 24" fill="#34c759" stroke="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>'''
-    
-    # Onay Tiku (Yeşil)
     icon_check = '''<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'''
 
     common_css = f"""
@@ -58,92 +50,53 @@ def load_css():
         h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; color: {accent} !important; }}
         .stApp {{ background-color: {bg_color}; color: {text_color}; }}
         
-        /* --- İPHONE REHBER TASARIMI --- */
+        /* IPHONE FRAME */
         .iphone-frame {{
-            max-width: 400px;
-            margin: 0 auto;
-            background-color: {ios_bg};
-            border-radius: 40px;
-            border: 8px solid #333;
-            padding: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            position: relative;
-            min-height: 500px;
+            max-width: 400px; margin: 0 auto; background-color: {ios_bg};
+            border-radius: 40px; border: 8px solid #333; padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: relative; min-height: 500px;
         }}
-        
         .iphone-notch {{
-            width: 120px;
-            height: 25px;
-            background: #000;
-            margin: -20px auto 10px auto;
-            border-bottom-left-radius: 15px;
-            border-bottom-right-radius: 15px;
-            z-index: 10;
+            width: 120px; height: 25px; background: #000; margin: -20px auto 10px auto;
+            border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; z-index: 10;
         }}
-        
-        .ios-list-header {{
-            color: {ios_text};
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-            padding-left: 10px;
-        }}
-        
+        .ios-list-header {{ color: {ios_text}; font-size: 2rem; font-weight: bold; margin-bottom: 20px; padding-left: 10px; }}
         .ios-list-item {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background-color: {ios_item_bg};
-            padding: 15px;
-            border-bottom: 1px solid {ios_border};
-            color: {ios_text};
+            display: flex; align-items: center; justify-content: space-between;
+            background-color: {ios_item_bg}; padding: 15px; border-bottom: 1px solid {ios_border}; color: {ios_text};
         }}
         .ios-list-item:first-child {{ border-top-left-radius: 12px; border-top-right-radius: 12px; }}
         .ios-list-item:last-child {{ border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }}
-        
         .ios-name {{ font-weight: 600; font-size: 1rem; }}
         .ios-sub {{ font-size: 0.8rem; color: #888; }}
         
-        .ios-actions {{ display: flex; gap: 15px; align-items: center; }}
-        
-        /* --- PREMIUM TO-DO TASARIMI --- */
+        /* TO-DO KARTLARI */
         .todo-container {{
-            background-color: {card_bg};
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 5px {shadow};
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            border: 1px solid {card_border};
-            transition: transform 0.2s;
+            background-color: {card_bg}; border-radius: 12px; padding: 15px; margin-bottom: 10px;
+            box-shadow: 0 2px 5px {shadow}; display: flex; align-items: center; gap: 15px;
+            border: 1px solid {card_border}; transition: transform 0.2s;
         }}
         .todo-container:hover {{ transform: scale(1.01); border-color: {accent}; }}
-        
         .todo-text {{ flex-grow: 1; font-size: 1rem; font-weight: 500; color: {text_color}; }}
         .todo-done {{ text-decoration: line-through; color: #636366; flex-grow: 1; font-size: 1rem; }}
         
-        /* --- KART TASARIMLARI --- */
+        /* DİĞER KARTLAR */
         .grand-card {{
             background: {card_bg}; border: 1px solid {card_border};
             border-radius: 16px; overflow: hidden; margin-bottom: 20px;
             box-shadow: 0 4px 10px {shadow}; transition: 0.3s;
         }}
         .grand-card:hover {{ transform: translateY(-5px); border-color: {accent}; }}
-        
         .img-area {{ width: 100%; height: 200px; background: #fff; display: flex; align-items: center; justify-content: center; }}
         .img-area img {{ max-height: 90%; max-width: 90%; object-fit: contain; }}
-        
         .content-area {{ padding: 15px; color: {text_color}; }}
         
         .expense-card {{
             background: {card_bg}; border: 1px solid {card_border};
-            border-left: 4px solid {accent}; border-radius: 12px; padding: 15px; margin-bottom: 10px;
-            color: {text_color};
+            border-left: 4px solid {accent}; border-radius: 12px; padding: 15px; margin-bottom: 10px; color: {text_color};
         }}
         
-        /* Inputlar ve Butonlar */
+        /* WIDGETS */
         .stTextInput input, .stNumberInput input, .stSelectbox, .stTextArea textarea {{
             background: {input_bg} !important; color: {text_color} !important;
             border: 1px solid {card_border} !important; border-radius: 10px !important;
@@ -152,8 +105,6 @@ def load_css():
             background: {btn_bg} !important; color: {btn_txt} !important;
             border: 1px solid {card_border} !important; border-radius: 10px !important;
         }}
-        
-        /* Hero */
         .hero-days {{ font-size: 4rem; font-weight: 700; color: {accent}; font-family: 'Playfair Display', serif; text-align: center; }}
         .hero-sub {{ text-align: center; font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; color: {text_color}; }}
     """
@@ -212,7 +163,6 @@ if not st.session_state.authenticated:
             else: st.error("Hatalı")
     st.stop()
 
-# Giriş Yapıldı
 icon_trash, icon_phone, icon_check = load_css()
 df = get_data()
 
@@ -228,11 +178,9 @@ with st.sidebar:
         with pd.ExcelWriter(out, engine='xlsxwriter') as writer: df.to_excel(writer, index=False)
         st.download_button("İndir", out.getvalue(), "Yedek.xlsx")
 
-# Hero
 days = (TARGET_DATE - date.today()).days
 st.markdown(f"<div class='hero-sub'>BÜYÜK GÜNE KALAN</div><div class='hero-days'>{days} Gün</div>", unsafe_allow_html=True)
 
-# Arama
 c_src, c_null = st.columns([3,1])
 with c_src: search = st.text_input("🔍 Ara...", placeholder="Ürün, görev veya kişi...")
 filtered_df = df[df.apply(lambda x: search.lower() in str(x).lower(), axis=1)] if not df.empty else df
@@ -284,7 +232,7 @@ with tabs[1]:
             if c1.button("GÜNCELLE", key=f"u{r['id']}"): df.at[i, 'odenen'] = new_pd; save_data(df); st.rerun()
             if c2.button("SİL", key=f"dx{r['id']}"): df = df.drop(i); save_data(df); st.rerun()
 
-# TAB 3: YAPILACAKLAR (PREMIUM KARTLAR)
+# TAB 3: YAPILACAKLAR
 with tabs[2]:
     with st.form("todo_add", clear_on_submit=True, border=False):
         c1, c2 = st.columns([4,1])
@@ -297,30 +245,20 @@ with tabs[2]:
     for i, r in todos.iterrows():
         done = r['durum'] == "Yapıldı"
         cls = "todo-done" if done else "todo-text"
-        # HTML + SVG Çöp Kutusu
-        trash_html = f"""<div style="cursor:pointer; display:flex; align-items:center; justify-content:center;">{icon_trash}</div>"""
-        
-        st.markdown(f"""
-        <div class="todo-container">
-            <div style="font-size:1.2rem; cursor:pointer;">{'✅' if done else '⬜'}</div>
-            <div class="{cls}">{r['baslik']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Butonlar (Gizli ama işlevsel)
-        c_act1, c_act2 = st.columns([1, 15])
-        with c_act1:
+        st.markdown(f'<div class="todo-container"><div style="font-size:1.2rem; cursor:pointer;">{"✅" if done else "⬜"}</div><div class="{cls}">{r["baslik"]}</div></div>', unsafe_allow_html=True)
+        c1, c2 = st.columns([1, 15])
+        with c1:
             if st.button("Değiştir", key=f"t{r['id']}"): 
                 df.at[i, 'durum'] = "Yapılacak" if done else "Yapıldı"; save_data(df); st.rerun()
-        with c_act2:
+        with c2:
             if st.button("Sil", key=f"del_t{r['id']}"): df = df.drop(i); save_data(df); st.rerun()
 
-# TAB 4: REHBER (IPHONE STİLİ)
+# TAB 4: REHBER (HTML HATASI DÜZELTİLDİ)
 with tabs[3]:
     c1, c2 = st.columns([1, 1])
     with c1:
         with st.form("add_contact", clear_on_submit=True):
-            nm = st.text_input("İsim"); ph = st.text_input("Tel"); cat = st.text_input("Etiket (Örn: Mobilya)")
+            nm = st.text_input("İsim"); ph = st.text_input("Tel"); cat = st.text_input("Etiket")
             if st.form_submit_button("REHBERE EKLE"):
                 row = {"id": str(int(time.time())), "tur": "Usta", "baslik": nm, "notlar": clean_phone(ph), "kategori": cat}
                 df = pd.concat([df, pd.DataFrame([row])], ignore_index=True); save_data(df); st.rerun()
@@ -330,27 +268,10 @@ with tabs[3]:
         html_list = ""
         for i, r in contacts.iterrows():
             tel = r['notlar']
-            html_list += f"""
-            <div class="ios-list-item">
-                <div>
-                    <div class="ios-name">{r['baslik']}</div>
-                    <div class="ios-sub">{r['kategori']}</div>
-                </div>
-                <div class="ios-actions">
-                    <a href="tel:{tel}" style="text-decoration:none;">{icon_phone}</a>
-                </div>
-            </div>
-            """
+            # HATA DÜZELTME: Tek satırda string birleştirme yapıldı
+            html_list += f'<div class="ios-list-item"><div><div class="ios-name">{r["baslik"]}</div><div class="ios-sub">{r["kategori"]}</div></div><div class="ios-actions"><a href="tel:{tel}" style="text-decoration:none;">{icon_phone}</a></div></div>'
         
-        st.markdown(f"""
-        <div class="iphone-frame">
-            <div class="iphone-notch"></div>
-            <div class="ios-list-header">Kişiler</div>
-            <div style="background:#1c1c1e; border-radius:12px; overflow:hidden;">
-                {html_list}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="iphone-frame"><div class="iphone-notch"></div><div class="ios-list-header">Kişiler</div><div style="background:#1c1c1e; border-radius:12px; overflow:hidden;">{html_list}</div></div>', unsafe_allow_html=True)
         
         with st.expander("🗑️ Kişi Sil"):
             for i, r in contacts.iterrows():
@@ -359,9 +280,9 @@ with tabs[3]:
                 if c_del2.button("Sil", key=f"del_c{r['id']}"):
                     df = df.drop(i); save_data(df); st.rerun()
 
-# TAB 5: ANALİZ
+# TAB 5: ANALİZ (NameError DÜZELTİLDİ)
 with tabs[4]:
-    items = df[df['tur']=='Alisveris']
-    if not items.empty:
-        fig = px.pie(items, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
+    analiz_items = df[df['tur']=='Alisveris']
+    if not analiz_items.empty:
+        fig = px.pie(analiz_items, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
