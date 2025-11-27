@@ -12,47 +12,84 @@ from io import BytesIO
 st.set_page_config(page_title="Yuva & Co.", page_icon="💍", layout="wide")
 
 # Sabitler
-TARGET_DATE = date(2025, 4, 25) # Düğün Tarihi
-BG_DARK = "#0e0e0e"
+TARGET_DATE = date(2026, 4, 25) # Düğün Tarihi (GÜNCELLENDİ)
 
-# --- 2. CSS & GÖRSEL MOTORU ---
+# --- 2. TEMA VE CSS MOTORU ---
+if "theme" not in st.session_state:
+    st.session_state.theme = "Dark Luxury"
+
 def load_css():
-    common_css = """
+    # Tema Renkleri
+    if st.session_state.theme == "Dark Luxury":
+        bg_color = "#0e0e0e"
+        text_color = "#e0e0e0"
+        card_bg = "#1a1a1a"
+        card_border = "#333"
+        accent = "#d4af37" # Gold
+        input_bg = "#1a1a1a"
+    else: # Light Elegance
+        bg_color = "#f8f9fa"
+        text_color = "#2c3e50"
+        card_bg = "#ffffff"
+        card_border = "#e0e0e0"
+        accent = "#d4af37"
+        input_bg = "#ffffff"
+
+    common_css = f"""
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap');
-        body { font-family: 'Montserrat', sans-serif; }
-        h1, h2, h3, h4 { font-family: 'Playfair Display', serif !important; }
+        body {{ font-family: 'Montserrat', sans-serif; }}
+        h1, h2, h3, h4 {{ font-family: 'Playfair Display', serif !important; }}
         
-        .grand-card {
+        .stApp {{ background-color: {bg_color}; color: {text_color}; }}
+        
+        /* KART TASARIMI */
+        .grand-card {{
             border-radius: 12px; overflow: hidden; margin-bottom: 20px; 
             position: relative; height: 100%; display: flex; flex-direction: column;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            background: #1a1a1a; border: 1px solid #333;
-        }
-        .grand-card:hover { transform: translateY(-5px); border-color: #d4af37; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }
+            background: {card_bg}; border: 1px solid {card_border};
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }}
+        .grand-card:hover {{ transform: translateY(-5px); border-color: {accent}; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15); }}
         
-        .img-area { width: 100%; height: 220px; background:#fff; overflow:hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+        /* RESİM ALANI (KESİLMESİN DİYE CONTAIN) */
+        .img-area {{ width: 100%; height: 220px; background: {card_bg}; overflow:hidden; position: relative; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid {card_border}; }}
+        .img-area img {{ width: 100%; height: 100%; object-fit: contain; padding: 10px; }}
         
-        /* DÜZELTME: Resim artık kırpılmayacak, sığdırılacak */
-        .img-area img { width: 100%; height: 100%; object-fit: contain; padding: 5px; }
-        
-        .content-area { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .content-area {{ padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; color: {text_color}; }}
         
         /* GİDER KARTI */
-        .expense-card {
+        .expense-card {{
             padding: 15px; border-radius: 12px; margin-bottom: 15px;
-            border-left: 5px solid #d4af37; background: rgba(255,255,255,0.05);
-        }
-        .sticky-footer {
+            border-left: 5px solid {accent}; background: {card_bg}; border: 1px solid {card_border}; color: {text_color};
+        }}
+        
+        /* STICKY FOOTER */
+        .sticky-footer {{
             position: fixed; bottom: 0; left: 0; width: 100%; z-index: 999;
-            background: rgba(15, 15, 15, 0.95); border-top: 1px solid #333;
+            background: {card_bg}; border-top: 1px solid {card_border};
             padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
-            backdrop-filter: blur(10px);
-        }
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }}
+        
+        /* INPUTLAR İÇİN RENK AYARI */
+        .stTextInput>div>div>input, .stSelectbox>div>div>div, .stNumberInput>div>div>input {{
+            background-color: {input_bg} !important; color: {text_color} !important; border-color: {card_border};
+        }}
+        
         /* TELEFON LİNKİ */
-        a.phone-link { color: #4ade80 !important; text-decoration: none; font-weight: bold; }
-        a.phone-link:hover { text-decoration: underline; }
+        a.phone-link {{ color: #4ade80 !important; text-decoration: none; font-weight: bold; }}
+        a.phone-link:hover {{ text-decoration: underline; }}
+        
+        /* HERO SAYACI */
+        .hero-counter {{
+            text-align: center; padding: 40px 20px; margin-bottom: 20px;
+        }}
+        .hero-days {{ font-size: 4rem; font-weight: bold; color: {accent}; line-height: 1; font-family: 'Playfair Display', serif; }}
+        .hero-label {{ font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; }}
+        .hero-date {{ font-size: 1rem; color: #888; margin-top: 10px; }}
     """
-    st.markdown(f"<style>{common_css}.stApp {{ background-color: {BG_DARK}; color: #e0e0e0; }}</style>", unsafe_allow_html=True)
+    st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
 
 # --- 3. VERİ YÖNETİMİ ---
 def get_data():
@@ -97,24 +134,19 @@ def clean_phone(phone_val):
     return digits
 
 # --- 4. BAŞLANGIÇ ---
-load_css()
-df = get_data()
-if "last_undo" not in st.session_state: st.session_state.last_undo = None
-
-# --- 5. SIDEBAR ---
+# Sidebar Tema Seçimi (CSS Yüklenmeden Önce)
 with st.sidebar:
     st.markdown("### 💍 Yuva & Co.")
-    days = (TARGET_DATE - date.today()).days
-    st.metric("Büyük Gün", f"{days} Gün Kaldı")
+    st.divider()
+    theme_choice = st.radio("Tema Seçimi", ["Dark Luxury", "Light Elegance"], index=0 if st.session_state.theme == "Dark Luxury" else 1)
+    if theme_choice != st.session_state.theme:
+        st.session_state.theme = theme_choice
+        st.rerun()
     st.divider()
     
-    st.subheader("💰 Maaş Sayacı")
-    salary = st.number_input("Aylık Ortak Gelir", value=0, step=1000)
-    if salary > 0:
-        months_left = days // 30
-        st.caption(f"Düğüne kadar ~{months_left * salary:,.0f} TL potansiyel gelir.")
-
-    st.divider()
+    # Maaş sayacı kaldırıldı, yerine sadece yedekleme ve undo var.
+    if "last_undo" not in st.session_state: st.session_state.last_undo = None
+    
     if st.button("♻️ Geri Al (Undo)", disabled=st.session_state.last_undo is None):
         if st.session_state.last_undo is not None:
             df = pd.concat([df, st.session_state.last_undo], ignore_index=True)
@@ -126,10 +158,24 @@ with st.sidebar:
             df.to_excel(writer, index=False)
         st.download_button("İndir", output.getvalue(), f"Yuva_Yedek.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Üst Arama
+load_css()
+df = get_data()
+
+# --- 5. HERO & ORTA SAYAÇ ---
+days_left = (TARGET_DATE - date.today()).days
+
+# Ortalanmış Sayaç HTML
+st.markdown(f"""
+<div class="hero-counter">
+    <div class="hero-label">BÜYÜK GÜNE KALAN</div>
+    <div class="hero-days">{days_left} Gün</div>
+    <div class="hero-date">25 Nisan 2026</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Arama Çubuğu
 c_hero1, c_hero2 = st.columns([3,1])
 with c_hero1:
-    st.markdown(f"<h2>Hoş Geldiniz.</h2>", unsafe_allow_html=True)
     search = st.text_input("🔍 Evin içinde ara...", placeholder="Ürün, Gider veya Not ara...")
 
 mask = df.apply(lambda x: search.lower() in str(x).lower(), axis=1) if search else [True] * len(df)
@@ -184,8 +230,8 @@ with tabs[0]:
                 overlay = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;"><span style="font-size:3rem;">✅</span></div>' if is_done else ""
                 img_src = row['img'] if row['img'] else "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
                 
-                # HTML güncellendi: object-fit: contain eklendi
-                card_html = f'<div class="grand-card">{overlay}<div class="img-area"><img src="{img_src}"></div><div class="content-area"><div style="color:#888; font-size:0.8rem;">{row["kategori"]}</div><h4 style="margin:5px 0; font-size:1rem;">{row["baslik"]}</h4><div style="font-size:1.2rem; color:#d4af37; font-weight:bold;">{float(row["fiyat"]):,.0f} TL</div></div></div>'
+                # HTML Renkleri (CSS class ile yönetiliyor ama gold renk inline kalabilir)
+                card_html = f'<div class="grand-card">{overlay}<div class="img-area"><img src="{img_src}"></div><div class="content-area"><div style="opacity:0.7; font-size:0.8rem;">{row["kategori"]}</div><h4 style="margin:5px 0; font-size:1rem;">{row["baslik"]}</h4><div style="font-size:1.2rem; color:#d4af37; font-weight:bold;">{float(row["fiyat"]):,.0f} TL</div></div></div>'
                 st.markdown(card_html, unsafe_allow_html=True)
                 
                 b1, b2 = st.columns(2)
@@ -259,7 +305,7 @@ with tabs[2]:
                 df.at[df[df['id']==r['id']].index[0], 'durum'] = new_status
                 save_data(df); st.rerun()
         
-        style = "text-decoration:line-through; color:#666;" if chk else ""
+        style = "text-decoration:line-through; opacity:0.6;" if chk else ""
         col_text.markdown(f"<span style='{style}'>{r['baslik']}</span>", unsafe_allow_html=True)
         if col_del.button("❌", key=f"del_td_{r['id']}"):
             df = df[df['id'] != r['id']]; save_data(df); st.rerun()
@@ -323,6 +369,11 @@ with tabs[4]:
     
     if not alisveris.empty:
         fig = px.pie(alisveris, values='fiyat', names='kategori', title="Harcamalar", hole=0.4, template="plotly_dark")
+        # Grafik renklerini temaya göre güncelleyelim mi? Basit tutmak için standart kalabilir
         st.plotly_chart(fig, use_container_width=True)
 
-st.markdown(f'<div class="sticky-footer"><div style="color:#fff;"><b>Toplam:</b> {grand_total:,.0f} TL</div><div style="color:#aaa;">Yuva & Co.</div></div>', unsafe_allow_html=True)
+# Footer da temaya uyumlu
+ft_bg = "#ffffff" if st.session_state.theme == "Light Elegance" else "#1a1a1a"
+ft_txt = "#000000" if st.session_state.theme == "Light Elegance" else "#ffffff"
+
+st.markdown(f'<div class="sticky-footer" style="background:{ft_bg}; color:{ft_txt};"><div style="font-weight:bold;">Toplam: {grand_total:,.0f} TL</div><div style="opacity:0.7;">Yuva & Co.</div></div>', unsafe_allow_html=True)
