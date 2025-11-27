@@ -108,6 +108,13 @@ def load_css():
         }}
         .hero-days {{ font-size: 4rem; font-weight: 700; color: {accent}; font-family: 'Playfair Display', serif; text-align: center; }}
         .hero-sub {{ text-align: center; font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; color: {text_color}; }}
+        .sticky-footer {{
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: {card_bg}; border: 1px solid {card_border};
+            padding: 10px 30px; border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex; gap: 20px; align-items: center; z-index: 9999;
+        }}
     """
     st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
     return icon_trash, icon_phone, icon_check
@@ -282,15 +289,27 @@ with tabs[3]:
 
 # TAB 5: ANALİZ
 with tabs[4]:
-    # Güvenli değişken ismi kullanıyoruz
-    chart_data = df[df['tur']=='Alisveris']
-    if not chart_data.empty:
-        fig = px.pie(chart_data, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
+    analiz_items = df[df['tur']=='Alisveris']
+    
+    # Giderleri de hesaba kat (Veriler geri geldi)
+    analiz_gider = df[df['tur'] == 'Ekstra']
+    
+    grand_total = analiz_items['fiyat'].sum() + analiz_gider['fiyat'].sum()
+    grand_paid = analiz_items[analiz_items['durum']=='Alındı']['fiyat'].sum() + analiz_gider['odenen'].sum()
+    grand_debt = grand_total - grand_paid
+    
+    if not analiz_items.empty:
+        fig = px.pie(analiz_items, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
         
-        # Ekstra İstatistikler
-        total_spent = chart_data[chart_data['durum']=='Alındı']['fiyat'].sum()
-        remaining = chart_data[chart_data['durum']!='Alındı']['fiyat'].sum()
-        c1, c2 = st.columns(2)
-        c1.metric("Harcanan", f"{total_spent:,.0f} TL")
-        c2.metric("Kalan", f"{remaining:,.0f} TL")
+    # Toplam Bütçe Kartları (Düzeltildi)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Toplam Planlanan", f"{grand_total:,.0f} TL")
+    c2.metric("Toplam Ödenen", f"{grand_paid:,.0f} TL")
+    c3.metric("Kalan Borç", f"{grand_debt:,.0f} TL", delta_color="inverse")
+
+# Footer
+text_color_footer = "#000000" if st.session_state.theme == "Light Elegance" else "#ffffff"
+st.markdown(f'<div class="sticky-footer"><div style="font-weight:bold; color:{text_color_footer}">Toplam: {grand_total:,.0f} TL</div><div style="opacity:0.7; color:{text_color_footer}">Yuva & Co.</div></div>', unsafe_allow_html=True)
+
+
