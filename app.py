@@ -175,29 +175,59 @@ def load_css():
     """
     st.markdown(f"<style>{common_css}</style>", unsafe_allow_html=True)
 
-# --- 3. VERİ YÖNETİMİ ---
+# --- 3. VERİ YÖNETİMİ (RETRY & HATA YÖNETİMİ EKLENDİ) ---
 def get_data():
     required_cols = ['id', 'tarih', 'ekleyen', 'tur', 'kategori', 'baslik', 'fiyat', 'ilk_fiyat', 'url', 'img', 'oncelik', 'notlar', 'durum', 'adet', 'odenen']
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        df = conn.read(ttl=0)
-        if df is None or df.empty: return pd.DataFrame(columns=required_cols)
-        for col in required_cols:
-            if col not in df.columns: df[col] = ""
-        df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
-        df['odenen'] = pd.to_numeric(df['odenen'], errors='coerce').fillna(0)
-        df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1)
-        return df.fillna("")
-    except Exception as e:
-        st.error(f"Veri bağlantı hatası: {e}")
-        return pd.DataFrame(columns=required_cols)
+    
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    
+    # 3 Kez Deneme Hakkı (Google Kotası İçin)
+    for attempt in range(3):
+        try:
+            df = conn.read(ttl=0)
+            
+            if df is None or df.empty: 
+                return pd.DataFrame(columns=required_cols)
+
+            for col in required_cols:
+                if col not in df.columns: df[col] = ""
+            
+            df['fiyat'] = pd.to_numeric(df['fiyat'], errors='coerce').fillna(0)
+            df['odenen'] = pd.to_numeric(df['odenen'], errors='coerce').fillna(0)
+            df['adet'] = pd.to_numeric(df['adet'], errors='coerce').fillna(1)
+            
+            return df.fillna("")
+            
+        except Exception as e:
+            # Hata mesajında 429 veya Quota varsa bekle ve tekrar dene
+            if "429" in str(e) or "Quota" in str(e) or "requests per minute" in str(e):
+                time.sleep(1 + attempt) # 1sn, 2sn bekle...
+                continue
+            else:
+                st.error(f"Veri bağlantı hatası: {e}")
+                return pd.DataFrame(columns=required_cols)
+    
+    st.error("Google Sheets çok yoğun, lütfen biraz bekleyip sayfayı yenileyin.")
+    return pd.DataFrame(columns=required_cols)
 
 def save_data(df):
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        conn.update(worksheet="Sayfa1", data=df)
-        st.cache_data.clear()
-    except Exception as e: st.warning("Kaydetme hatası.")
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    
+    # Kaydetme için de Retry Mantığı
+    for attempt in range(3):
+        try:
+            conn.update(worksheet="Sayfa1", data=df)
+            st.cache_data.clear()
+            return
+        except Exception as e:
+            if "429" in str(e) or "Quota" in str(e):
+                time.sleep(1 + attempt)
+                continue
+            else:
+                st.warning(f"Kaydetme sırasında bir hata oluştu: {e}")
+                return
+    
+    st.error("Yoğunluk nedeniyle kaydedilemedi. Lütfen tekrar deneyin.")
 
 def scrape_metadata(url):
     fallback = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
