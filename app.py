@@ -86,22 +86,24 @@ def load_css():
             background: {card_bg}; border: 1px solid {card_border};
             border-radius: 16px; overflow: hidden; margin-bottom: 10px;
             box-shadow: 0 4px 10px {shadow}; transition: 0.3s;
+            height: 100%; display: flex; flex-direction: column;
         }}
         .grand-card:hover {{ transform: translateY(-5px); border-color: {accent}; }}
         
-        /* Resim Alanı - Tıklanabilir Link İçin */
+        /* Resim Alanı - Sabit ve Güvenli */
         .img-area {{ 
-            width: 100%; height: 200px; background: #fff; 
+            width: 100%; height: 220px; background: #fff; 
             display: flex; align-items: center; justify-content: center; 
             position: relative; overflow: hidden;
+            border-bottom: 1px solid {card_border};
         }}
         .img-area img {{ 
-            max-height: 90%; max-width: 90%; object-fit: contain; 
-            transition: transform 0.3s ease;
+            width: 100%; height: 100%; object-fit: contain; 
+            transition: transform 0.3s ease; padding: 10px;
         }}
         .img-area:hover img {{ transform: scale(1.05); }}
         
-        .content-area {{ padding: 15px; color: {text_color}; }}
+        .content-area {{ padding: 15px; color: {text_color}; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }}
         
         .expense-card {{
             background: {card_bg}; border: 1px solid {card_border};
@@ -116,7 +118,7 @@ def load_css():
         .stButton>button {{
             background: {btn_bg} !important; color: {btn_txt} !important;
             border: 1px solid {card_border} !important; border-radius: 8px !important;
-            padding: 0.25rem 0.5rem !important; /* Minimalist buton boyutu */
+            padding: 0.25rem 0.5rem !important;
         }}
         .hero-days {{ font-size: 4rem; font-weight: 700; color: {accent}; font-family: 'Playfair Display', serif; text-align: center; }}
         .hero-sub {{ text-align: center; font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; color: {text_color}; }}
@@ -235,32 +237,20 @@ with tabs[0]:
     
     items = filtered_df[filtered_df['tur'] == 'Alisveris']
     if not items.empty:
-        # Tersine sırala (En yeni en üstte)
         items = items.iloc[::-1]
         cols = st.columns(3)
         for i, (ix, row) in enumerate(items.iterrows()):
             with cols[i%3]:
                 bought = row['durum'] == "Alındı"
-                # HTML Link Wrapper
                 img_html = f'<a href="{row["url"]}" target="_blank" style="display:block;width:100%;height:100%;"><img src="{row["img"]}"></a>'
                 ovl = f'<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;">{icon_check}</div>' if bought else ""
                 
-                st.markdown(f'''
-                <div class="grand-card">
-                    {ovl}
-                    <div class="img-area">{img_html}</div>
-                    <div class="content-area">
-                        <div style="opacity:0.7;font-size:0.8rem;">{row["kategori"]}</div>
-                        <div style="font-weight:bold;margin:5px 0;height:2.4em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{row["baslik"]}</div>
-                        <div style="color:#d4af37;font-size:1.2rem;">{row["fiyat"]:,.0f} TL</div>
-                    </div>
-                </div>
-                ''', unsafe_allow_html=True)
+                # HTML TEK SATIRDA YAZILDI (HATA ÖNLEYİCİ)
+                card_html = f'<div class="grand-card">{ovl}<div class="img-area">{img_html}</div><div class="content-area"><div style="opacity:0.7;font-size:0.8rem;">{row["kategori"]}</div><div style="font-weight:bold;margin:5px 0;height:2.4em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{row["baslik"]}</div><div style="color:#d4af37;font-size:1.2rem;">{row["fiyat"]:,.0f} TL</div></div></div>'
+                st.markdown(card_html, unsafe_allow_html=True)
                 
-                # Minimalist Butonlar
                 c1, c2, c3 = st.columns([1, 1, 1])
                 with c1:
-                    # Düzenle (Popover)
                     with st.popover("✏️", use_container_width=True):
                         with st.form(f"edit_{row['id']}"):
                             e_tit = st.text_input("İsim", value=row['baslik'])
@@ -274,12 +264,10 @@ with tabs[0]:
                                 df.at[ix, 'url'] = e_url
                                 save_data(df); st.rerun()
                 with c2:
-                    # Durum Değiştir
                     btn_label = "✅" if not bought else "↩️"
                     if st.button(btn_label, key=f"b{row['id']}", use_container_width=True):
                         df.at[ix, 'durum'] = "Alındı" if not bought else "Alınacak"; save_data(df); st.rerun()
                 with c3:
-                    # Sil
                     if st.button("🗑️", key=f"d{row['id']}", use_container_width=True):
                         df = df.drop(ix); save_data(df); st.rerun()
 
@@ -296,7 +284,8 @@ with tabs[1]:
     for i, r in exps.iterrows():
         rem = r['fiyat'] - r['odenen']
         pct = (r['odenen'] / r['fiyat'] * 100) if r['fiyat'] > 0 else 0
-        st.markdown(f'<div class="expense-card"><div style="display:flex;justify-content:space-between;font-weight:bold;"><span>{r["baslik"]}</span><span>{r["fiyat"]:,.0f} TL</span></div><div style="margin:5px 0;height:5px;background:#333;border-radius:3px;"><div style="width:{pct}%;height:100%;background:#d4af37;"></div></div><div style="display:flex;justify-content:space-between;font-size:0.8rem;"><span style="color:#4ade80">Ödenen: {r["odenen"]:,.0f} TL</span><span style="color:#ff453a">Kalan: {rem:,.0f} TL</span></div></div>', unsafe_allow_html=True)
+        exp_html = f'<div class="expense-card"><div style="display:flex;justify-content:space-between;font-weight:bold;"><span>{r["baslik"]}</span><span>{r["fiyat"]:,.0f} TL</span></div><div style="margin:5px 0;height:5px;background:#333;border-radius:3px;"><div style="width:{pct}%;height:100%;background:#d4af37;"></div></div><div style="display:flex;justify-content:space-between;font-size:0.8rem;"><span style="color:#4ade80">Ödenen: {r["odenen"]:,.0f} TL</span><span style="color:#ff453a">Kalan: {rem:,.0f} TL</span></div></div>'
+        st.markdown(exp_html, unsafe_allow_html=True)
         with st.expander("Düzenle"):
             c1, c2 = st.columns([3,1])
             new_pd = c1.number_input("Ödenen", value=float(r['odenen']), key=f"p{r['id']}")
@@ -316,7 +305,8 @@ with tabs[2]:
     for i, r in todos.iterrows():
         done = r['durum'] == "Yapıldı"
         cls = "todo-done" if done else "todo-text"
-        st.markdown(f'<div class="todo-container"><div style="font-size:1.2rem; cursor:pointer;">{"✅" if done else "⬜"}</div><div class="{cls}">{r["baslik"]}</div></div>', unsafe_allow_html=True)
+        todo_html = f'<div class="todo-container"><div style="font-size:1.2rem; cursor:pointer;">{"✅" if done else "⬜"}</div><div class="{cls}">{r["baslik"]}</div></div>'
+        st.markdown(todo_html, unsafe_allow_html=True)
         c1, c2 = st.columns([1, 15])
         with c1:
             if st.button("Değiştir", key=f"t{r['id']}"): 
