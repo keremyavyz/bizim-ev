@@ -84,12 +84,23 @@ def load_css():
         /* KART TASARIMLARI */
         .grand-card {{
             background: {card_bg}; border: 1px solid {card_border};
-            border-radius: 16px; overflow: hidden; margin-bottom: 20px;
+            border-radius: 16px; overflow: hidden; margin-bottom: 10px;
             box-shadow: 0 4px 10px {shadow}; transition: 0.3s;
         }}
         .grand-card:hover {{ transform: translateY(-5px); border-color: {accent}; }}
-        .img-area {{ width: 100%; height: 200px; background: #fff; display: flex; align-items: center; justify-content: center; }}
-        .img-area img {{ max-height: 90%; max-width: 90%; object-fit: contain; }}
+        
+        /* Resim Alanı - Tıklanabilir Link İçin */
+        .img-area {{ 
+            width: 100%; height: 200px; background: #fff; 
+            display: flex; align-items: center; justify-content: center; 
+            position: relative; overflow: hidden;
+        }}
+        .img-area img {{ 
+            max-height: 90%; max-width: 90%; object-fit: contain; 
+            transition: transform 0.3s ease;
+        }}
+        .img-area:hover img {{ transform: scale(1.05); }}
+        
         .content-area {{ padding: 15px; color: {text_color}; }}
         
         .expense-card {{
@@ -104,7 +115,8 @@ def load_css():
         }}
         .stButton>button {{
             background: {btn_bg} !important; color: {btn_txt} !important;
-            border: 1px solid {card_border} !important; border-radius: 10px !important;
+            border: 1px solid {card_border} !important; border-radius: 8px !important;
+            padding: 0.25rem 0.5rem !important; /* Minimalist buton boyutu */
         }}
         .hero-days {{ font-size: 4rem; font-weight: 700; color: {accent}; font-family: 'Playfair Display', serif; text-align: center; }}
         .hero-sub {{ text-align: center; font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; color: {text_color}; }}
@@ -142,18 +154,30 @@ def save_data(df):
         try: conn.update(worksheet="Sayfa1", data=df); st.cache_data.clear(); return
         except: time.sleep(1)
 
+def detect_category(title):
+    t = title.lower()
+    if any(x in t for x in ['koltuk', 'masa', 'sandalye', 'sehpa', 'ünite', 'konsol', 'halı', 'perde', 'kanepe']): return 'Salon'
+    if any(x in t for x in ['tencere', 'tava', 'çatal', 'kaşık', 'bıçak', 'tabak', 'bardak', 'robot', 'blender', 'airfryer', 'tost', 'kahve', 'fırın', 'kettle']): return 'Mutfak'
+    if any(x in t for x in ['yatak', 'baza', 'başlık', 'dolap', 'gardırop', 'şifonyer', 'komodin', 'nevresim', 'yastık', 'yorgan']): return 'Yatak Odası'
+    if any(x in t for x in ['tv', 'televizyon', 'süpürge', 'ütü', 'kurutma', 'bilgisayar', 'telefon', 'hoparlör']): return 'Elektronik'
+    if any(x in t for x in ['havlu', 'bornoz', 'paspas', 'sabunluk', 'diş', 'banyo']): return 'Banyo'
+    return 'Diğer'
+
 def scrape_metadata(url):
     fallback = "https://cdn-icons-png.flaticon.com/512/3081/3081840.png"
-    if not url or len(url) < 5: return "Yeni Ürün", fallback
+    if not url or len(url) < 5: return "Yeni Ürün", "Diğer", fallback
     try:
         encoded = urllib.parse.quote(url)
         resp = requests.get(f"https://api.microlink.io?url={encoded}&meta=true", timeout=5)
         data = resp.json()
         if data['status'] == 'success':
             d = data['data']
-            return d.get('title', 'Yeni Ürün'), d.get('image', {}).get('url', fallback)
+            title = d.get('title', 'Yeni Ürün')
+            img = d.get('image', {}).get('url', fallback)
+            cat = detect_category(title)
+            return title, cat, img
     except: pass
-    return "Manuel Giriş", fallback
+    return "Manuel Giriş", "Diğer", fallback
 
 def clean_phone(p):
     s = ''.join(filter(str.isdigit, str(p)))
@@ -199,26 +223,65 @@ tabs = st.tabs(["🛍️ KOLEKSİYON", "💸 GİDERLER", "✅ YAPILACAKLAR", "�
 with tabs[0]:
     with st.popover("➕ ÜRÜN EKLE", use_container_width=True):
         with st.form("add_item", clear_on_submit=True):
-            lnk = st.text_input("Link"); cat = st.selectbox("Kategori", ["Salon", "Mutfak", "Yatak Odası", "Elektronik", "Diğer"])
-            prc = st.number_input("Fiyat"); qty = st.number_input("Adet", 1)
+            lnk = st.text_input("Link (Otomatik Doldurur)")
+            man_cat = st.selectbox("Kategori (Otomatik Seçilir)", ["Otomatik", "Salon", "Mutfak", "Yatak Odası", "Elektronik", "Banyo", "Diğer"])
+            prc = st.number_input("Fiyat", min_value=0.0)
+            qty = st.number_input("Adet", min_value=1, value=1)
             if st.form_submit_button("EKLE"):
-                tt, im = scrape_metadata(lnk)
-                row = {"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "tur": "Alisveris", "kategori": cat, "baslik": tt, "fiyat": prc*qty, "url": lnk, "img": im, "durum": "Alınacak", "adet": qty}
+                tt, auto_cat, im = scrape_metadata(lnk)
+                final_cat = man_cat if man_cat != "Otomatik" else auto_cat
+                row = {"id": str(int(time.time())), "tarih": datetime.now().strftime("%d.%m.%Y"), "tur": "Alisveris", "kategori": final_cat, "baslik": tt, "fiyat": prc*qty, "url": lnk, "img": im, "durum": "Alınacak", "adet": qty}
                 df = pd.concat([df, pd.DataFrame([row])], ignore_index=True); save_data(df); st.rerun()
     
     items = filtered_df[filtered_df['tur'] == 'Alisveris']
     if not items.empty:
+        # Tersine sırala (En yeni en üstte)
+        items = items.iloc[::-1]
         cols = st.columns(3)
         for i, (ix, row) in enumerate(items.iterrows()):
             with cols[i%3]:
                 bought = row['durum'] == "Alındı"
-                ovl = f'<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;">{icon_check}</div>' if bought else ""
-                st.markdown(f'<div class="grand-card">{ovl}<div class="img-area"><img src="{row["img"]}"></div><div class="content-area"><div style="opacity:0.7;font-size:0.8rem;">{row["kategori"]}</div><div style="font-weight:bold;margin:5px 0;">{row["baslik"]}</div><div style="color:#d4af37;font-size:1.2rem;">{row["fiyat"]:,.0f} TL</div></div></div>', unsafe_allow_html=True)
-                c1, c2 = st.columns(2)
-                if c1.button("ALDIK" if not bought else "İPTAL", key=f"b{row['id']}", use_container_width=True):
-                    df.at[ix, 'durum'] = "Alındı" if not bought else "Alınacak"; save_data(df); st.rerun()
-                if c2.button("SİL", key=f"d{row['id']}", use_container_width=True):
-                    df = df.drop(ix); save_data(df); st.rerun()
+                # HTML Link Wrapper
+                img_html = f'<a href="{row["url"]}" target="_blank" style="display:block;width:100%;height:100%;"><img src="{row["img"]}"></a>'
+                ovl = f'<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;">{icon_check}</div>' if bought else ""
+                
+                st.markdown(f'''
+                <div class="grand-card">
+                    {ovl}
+                    <div class="img-area">{img_html}</div>
+                    <div class="content-area">
+                        <div style="opacity:0.7;font-size:0.8rem;">{row["kategori"]}</div>
+                        <div style="font-weight:bold;margin:5px 0;height:2.4em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">{row["baslik"]}</div>
+                        <div style="color:#d4af37;font-size:1.2rem;">{row["fiyat"]:,.0f} TL</div>
+                    </div>
+                </div>
+                ''', unsafe_allow_html=True)
+                
+                # Minimalist Butonlar
+                c1, c2, c3 = st.columns([1, 1, 1])
+                with c1:
+                    # Düzenle (Popover)
+                    with st.popover("✏️", use_container_width=True):
+                        with st.form(f"edit_{row['id']}"):
+                            e_tit = st.text_input("İsim", value=row['baslik'])
+                            e_prc = st.number_input("Fiyat", value=float(row['fiyat']))
+                            e_img = st.text_input("Resim URL", value=row['img'])
+                            e_url = st.text_input("Ürün Linki", value=row['url'])
+                            if st.form_submit_button("KAYDET"):
+                                df.at[ix, 'baslik'] = e_tit
+                                df.at[ix, 'fiyat'] = e_prc
+                                df.at[ix, 'img'] = e_img
+                                df.at[ix, 'url'] = e_url
+                                save_data(df); st.rerun()
+                with c2:
+                    # Durum Değiştir
+                    btn_label = "✅" if not bought else "↩️"
+                    if st.button(btn_label, key=f"b{row['id']}", use_container_width=True):
+                        df.at[ix, 'durum'] = "Alındı" if not bought else "Alınacak"; save_data(df); st.rerun()
+                with c3:
+                    # Sil
+                    if st.button("🗑️", key=f"d{row['id']}", use_container_width=True):
+                        df = df.drop(ix); save_data(df); st.rerun()
 
 # TAB 2: GİDERLER
 with tabs[1]:
@@ -290,8 +353,6 @@ with tabs[3]:
 # TAB 5: ANALİZ
 with tabs[4]:
     analiz_items = df[df['tur']=='Alisveris']
-    
-    # Giderleri de hesaba kat (Veriler geri geldi)
     analiz_gider = df[df['tur'] == 'Ekstra']
     
     grand_total = analiz_items['fiyat'].sum() + analiz_gider['fiyat'].sum()
@@ -302,7 +363,6 @@ with tabs[4]:
         fig = px.pie(analiz_items, values='fiyat', names='kategori', title="Harcamalar", template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
         
-    # Toplam Bütçe Kartları (Düzeltildi)
     c1, c2, c3 = st.columns(3)
     c1.metric("Toplam Planlanan", f"{grand_total:,.0f} TL")
     c2.metric("Toplam Ödenen", f"{grand_paid:,.0f} TL")
@@ -311,5 +371,3 @@ with tabs[4]:
 # Footer
 text_color_footer = "#000000" if st.session_state.theme == "Light Elegance" else "#ffffff"
 st.markdown(f'<div class="sticky-footer"><div style="font-weight:bold; color:{text_color_footer}">Toplam: {grand_total:,.0f} TL</div><div style="opacity:0.7; color:{text_color_footer}">Yuva & Co.</div></div>', unsafe_allow_html=True)
-
-
